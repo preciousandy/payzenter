@@ -1,0 +1,179 @@
+@import "jodit/es2021/jodit";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+    .input-lablel {
+        @apply block font-medium text-sm text-black dark:text-gray-300 lg:text-base xl:text-lg;
+    }
+    .text-input {
+        @apply border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm px-3 py-2 lg:py-4 lg:text-base;
+    }
+
+    .pr-btn {
+        @apply rounded-lg px-4 py-3 bg-primary dark:bg-blue-900 border border-transparent  font-semibold text-sm text-white    tracking-wider    focus:outline-none focus:ring-2 focus:ring-primary transition ease-in-out duration-150 text-center block lg:text-base md:py-3 w-full;
+    }
+
+    .sec-btn {
+        @apply rounded-lg px-4 py-2  dark:bg-primary  border-2 border-primary dark:border-primary  font-semibold text-sm text-primary dark:text-primary  tracking-wider shadow-sm hover:bg-teal-50 dark:hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-primary disabled:opacity-25 transition ease-in-out duration-150 text-center md:py-3;
+    }
+    .sender {
+        @apply bg-gray-50 dark:bg-gray-900;
+    }
+
+    .completed {
+        @apply bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-3 py-1 rounded-full;
+    }
+    .approved {
+        @apply bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-3 py-1 rounded-full;
+    }
+    .verified {
+        @apply bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-3 py-1 rounded-full;
+    }
+    .unverified {
+        @apply bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 px-3 py-1 rounded-full;
+    }
+    .success {
+        @apply bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-3 py-1 rounded-full;
+    }
+    .successful {
+        @apply bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-3 py-1 rounded-full;
+    }
+
+    .active {
+        @apply bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100 px-3 py-1 rounded-full;
+    }
+    .open {
+        @apply bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-3 py-1 rounded-full;
+    }
+
+    .in-progress {
+        @apply bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-100 px-3 py-1 rounded-full;
+    }
+
+    .pending {
+        @apply bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-100 px-3 py-1 rounded-full;
+    }
+    .suspended {
+        @apply bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-100 px-3 py-1 rounded-full;
+    }
+
+    .rejected {
+        @apply bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 px-3 py-1 rounded-full;
+    }
+
+    .failed {
+        @apply bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 px-3 py-1 rounded-full;
+    }
+    .blocked {
+        @apply bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 px-3 py-1 rounded-full;
+    }
+    .deleted {
+        @apply bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 px-3 py-1 rounded-full;
+    }
+
+    .closed {
+        @apply bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 px-3 py-1 rounded-full;
+    }
+
+    .resolved {
+        @apply bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-3 py-1 rounded-full;
+    }
+
+    /* Error severity classes */
+    .low {
+        @apply bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 px-3 py-1 rounded-full;
+    }
+
+    .medium {
+        @apply bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-100 px-3 py-1 rounded-full;
+    }
+
+    .high {
+        @apply bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-100 px-3 py-1 rounded-full;
+    }
+
+    .critical {
+        @apply bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 px-3 py-1 rounded-full;
+    }
+
+    .successful-border {
+        @apply border-primary;
+    }
+
+    .pending-border {
+        @apply border-amber-600;
+    }
+
+    .failed-border {
+        @apply border-red-600;
+    }
+
+    .round-on-going {
+        @apply text-blue-700 font-medium text-xs;
+    }
+    .round-completed {
+        @apply text-green-700 font-medium text-xs;
+    }
+    .round-pending {
+        @apply text-red-700 font-medium text-xs;
+    }
+    .round-awaiting {
+        @apply text-amber-500 font-medium text-xs;
+    }
+
+    .text-success {
+        @apply text-green-600 dark:text-green-400;
+    }
+
+    .text-failed {
+        @apply text-red-600 dark:text-red-400;
+    }
+
+    .text-pending {
+        @apply text-amber-600 dark:text-amber-400;
+    }
+}
+
+.lds-dual-ring {
+    display: inline-block;
+    width: 80px;
+    height: 80px;
+}
+.lds-dual-ring:after {
+    content: " ";
+    display: block;
+    width: 64px;
+    height: 64px;
+    margin: 8px;
+    border-radius: 50%;
+    border: 6px solid blue;
+    border-color: blue transparent blue transparent;
+    animation: lds-dual-ring 1.2s linear infinite;
+}
+@keyframes lds-dual-ring {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* CHECKBOX TOGGLE SWITCH */
+/* @apply rules for documentation, these do not work as inline style */
+.toggle-checkbox:checked {
+    @apply: right-0 border-green-400;
+    right: 0;
+    border-color: #68d391;
+}
+.toggle-checkbox:checked + .toggle-label {
+    @apply: bg-green-400;
+    background-color: #68d391;
+}
+
+.purple-bg {
+    /* background-color: aqua !important; */
+    background-image: url("/BuyandSellCrypto.png") !important;
+}
