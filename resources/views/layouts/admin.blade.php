@@ -116,16 +116,41 @@
 
       <script>
         document.addEventListener('alpine:init', () => {
-                                Alpine.data('modalTimeout', () => ({
-                                    showModal: false,
-                                    show() {
-                                        this.showModal = true;
-                                        setTimeout(() => {
-                                            this.showModal = false;
-                                        }, 4000); 
-                                    },
-                                }));
-                            });
+          Alpine.data('modalTimeout', () => ({
+            showModal: false,
+            show() {
+              this.showModal = true;
+              setTimeout(() => {
+                this.showModal = false;
+              }, 4000); 
+            },
+          }));
+        });
+
+        // Redirect to admin login if session expires (Livewire or fetch)
+        document.addEventListener('livewire:init', () => {
+          if (typeof Livewire !== 'undefined' && Livewire.hook) {
+            Livewire.hook('request', ({ uri, options, payload, respond, succeed, fail }) => {
+              fail(({ status, preventDefault }) => {
+                if (status === 419 || status === 401) {
+                  preventDefault();
+                  window.location.href = "{{ route('admin.login') }}";
+                }
+              });
+            });
+          }
+        });
+
+        if (window.fetch) {
+          const originalFetch = window.fetch;
+          window.fetch = async (...args) => {
+            const response = await originalFetch(...args);
+            if (response.status === 419 || response.status === 401) {
+              window.location.href = "{{ route('admin.login') }}";
+            }
+            return response;
+          };
+        }
       </script>
 
   </body>

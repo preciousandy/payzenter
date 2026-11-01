@@ -34,5 +34,16 @@ return [
     // Configure Google Analytics 4 (GA4) measurement_id
     'ga4' => [
         'measurementId' => env('GA_MEASUREMENT_ID'),
-    ]
+    ],
+
+    'udara360' => [
+        'base_url' => env('UDARA360_BASE_URL', 'https://openapi.udara360.io'),
+        'client_id' => env('UDARA360_CLIENT_ID', ''),
+        'client_secret' => env('UDARA360_CLIENT_SECRET', ''),
+        'parent_account' => env('UDARA360_PARENT_ACCOUNT', ''),
+        'product_code' => env('UDARA360_PRODUCT_CODE', '301'),
+        'bank_name' => env('UDARA360_BANK_NAME', 'Providus Bank'),
+        'bank_code' => env('UDARA360_BANK_CODE', '000023'),
+        'webhook_secret' => env('UDARA360_WEBHOOK_SECRET', ''),
+    ],
 ];

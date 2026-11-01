@@ -24,7 +24,7 @@
 
             <div>
                 <p class=" text-sm text-gray-600 md:text-base lg:text-lg">
-                    SwiftPay Account Number
+                    PayZenter Virtual Account Number
                 </p>
                 <p class=" text-xl font-semibold mt-1 md:text-2xl">{{auth()->user()->virtualAccount?->account_number ?? 'NIL'}}</p>
             </div>
@@ -48,43 +48,14 @@
             @endif
         </div>
 
-        <div class="flex items-center mt-8 w-3/5 mx-auto">
-            <hr class="flex-grow border-t-2 border-gray-400">
-            <span class="mx-4 text-gray-600">OR</span>
-            <hr class="flex-grow border-t-2 border-gray-400">
-        </div>
+        <div class=" mt-6 space-y-6">
+            <!-- Custom Paystack Card Payment Component -->
+            <div>
+                <livewire:fund-wallet.paystack-card-pay />
+            </div>
 
-        <div class=" mt-6 space-y-4">
-            <div x-data="{showAddMoney: false}">
-                <div class="flex justify-between items-center py-4 cursor-pointer" @click="showAddMoney = !showAddMoney">
-                    <div class="flex  gap-4  items-center">
-                        <img src="{{asset('icons/flutterwave.png')}}" alt="" class=" h-12 lg:h-16">
-                        <h4 class=" text-lg font-medium lg:text-xl">
-                            Pay with Flutterwave
-                        </h4>
+            <h3 class=" font-medium mt-4 lg:mt-8 md:text-lg lg:text-xl">
 
-                    </div>
-
-                    <span x-show="!showAddMoney" x-cloak class="fa fa-chevron-right text-2xl"> </span>
-                    <span x-show="showAddMoney" x-cloak class="fa fa-chevron-down text-2xl"> </span>
-                </div>
-                <form x-show="showAddMoney" x-cloak x-transition action="{{route('user.add-money')}}" class=" mt-2 " method="POST">
-                    @csrf
-                    <div class=" flex items-end space-x-4 w-full">
-                        <div class=" w-full  ">
-                            <x-input-label for="amount" :value="__('How much do you want to add?')" />
-                            <x-text-input id="amount" class="block mt-1 w-full py-3" type="number" name="amount" :value="old('amount')" required placeholder="Amount..." />
-                            <x-input-error :messages="$errors->get('amount')" class="mt-2" />
-                        </div>
-
-                        <x-primary-button class=" whitespace-nowrap  rounded-lg w-36 lg:w-48">
-                            <span class=" fa fa-credit-card mr-2"></span> Pay now
-                        </x-primary-button>
-                    </div>
-
-                </form>
-
-                <h3 class=" font-medium mt-4 lg:mt-8 md:text-lg lg:text-xl">
                     International Deposit Method
                 </h3>
 

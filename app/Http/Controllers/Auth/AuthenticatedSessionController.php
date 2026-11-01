@@ -42,7 +42,7 @@ class AuthenticatedSessionController extends Controller
         $user = auth()->user();
         $referer = $request->headers->get('referer');
         $refererPath = $referer ? parse_url($referer, PHP_URL_PATH) : '';
-        $isAdminPath = str_contains($refererPath, '/admin');
+        $isAdminPath = str_contains($refererPath, '/powerhouse') || str_contains($refererPath, '/admin');
 
         $isAdmin = ($user && ($user->hasRole('admin') || $user->hasRole(Roles::ADMIN))) || $isAdminPath;
 

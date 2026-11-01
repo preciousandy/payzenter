@@ -120,6 +120,111 @@ class UserService
         }
     }
 
+    public function generateUdara360VirtualAccount(User $user, $bvn, $customerDetails = [])
+    {
+        try {
+            $abbr = getCompanyAbbreviation();
+            $udaraService = new Udara360Service();
+
+            if (!$udaraService->isEnabled()) {
+                throw new \Exception('Udara360 virtual account service is disabled by admin.');
+            }
+
+            $customerName = trim($customerDetails['name'] ?? ($user->first_name . ' ' . $user->last_name));
+            $virtualAccountName = $customerName;
+            if (!str_starts_with($virtualAccountName, $abbr)) {
+                $virtualAccountName = $abbr . " " . $virtualAccountName;
+            }
+
+            $email = $customerDetails['email'] ?? $user->email;
+            $phone = $customerDetails['phone'] ?? $user->phone ?? $user->contact ?? '';
+            $cleanPhone = preg_replace('/\D/', '', (string) $phone);
+            if (strlen($cleanPhone) === 10) {
+                $cleanPhone = '0' . $cleanPhone;
+            }
+
+            $nameParts = preg_split('/\s+/', $customerName, 3);
+            $firstName = $nameParts[0] ?? 'Customer';
+            $lastName = $nameParts[1] ?? ($nameParts[0] ?? 'User');
+            $otherNames = $nameParts[2] ?? '';
+
+            $reference = $customerDetails['merchant_ref'] 
+                ?? ('vva_udara_' . Str::lower(Str::random(16)));
+
+            $payload = [
+                'accountName' => $virtualAccountName,
+                'alias' => substr($abbr, 0, 15),
+                'firstName' => substr($firstName, 0, 100),
+                'lastName' => substr($lastName, 0, 100),
+                'otherNames' => substr($otherNames, 0, 100),
+                'phoneNumber' => $cleanPhone !== '' ? $cleanPhone : '08000000000',
+                'email' => $email,
+                'ignorePrefix' => true,
+                'productCode' => $udaraService->getProductCode(),
+                'maritalStatus' => 'Single',
+                'religion' => 'Christianity',
+                'hometown' => 'Lagos',
+                'dateOfBirth' => $user->kyc->date_of_birth ?? '1995-01-01',
+                'nationality' => 'Nigerian',
+                'state' => 'Lagos',
+                'lga' => 'Ikeja',
+                'pep' => false,
+                'address' => $user->kyc->address ?? 'Lagos, Nigeria',
+                'isBusinessAccount' => false,
+                'accountType' => 'VirtualProxy',
+                'paymentAmount' => 0,
+                'paymentMode' => 2,
+                'canBeRecycled' => true,
+                'requestReference' => $reference,
+            ];
+
+            if (!empty($bvn)) {
+                $payload['bvn'] = (string) $bvn;
+            }
+
+            $parentAccount = $udaraService->getParentAccountNumber();
+            if ($parentAccount !== '') {
+                $payload['parentAccountNumber'] = $parentAccount;
+            }
+
+            $response = $udaraService->createVirtualAccount($payload);
+
+            $data = $response['data'] ?? [];
+            $accountNumber = $data['accountNumber'] ?? $data['account_number'] ?? null;
+
+            if (!is_string($accountNumber) || trim($accountNumber) === '') {
+                throw new \Exception('Udara360 did not return an account number.');
+            }
+
+            $bankName = $udaraService->getBankName();
+            $bankCode = $udaraService->getBankCode();
+
+            return [
+                'status' => 'success',
+                'data' => [
+                    'account_number' => $accountNumber,
+                    'accountNo' => $accountNumber,
+                    'virtualAccountNo' => $accountNumber,
+                    'bank_name' => $bankName,
+                    'bankName' => $bankName,
+                    'bank_code' => $bankCode,
+                    'bankCode' => $bankCode,
+                    'account_name' => $virtualAccountName,
+                    'accountName' => $virtualAccountName,
+                    'accountReference' => $reference,
+                    'order_ref' => $reference,
+                    'provider' => 'udara360',
+                    'id' => $data['id'] ?? null,
+                ]
+            ];
+        } catch (\Throwable $th) {
+            return [
+                'status' => 'error',
+                'message' => $th->getMessage()
+            ];
+        }
+    }
+
     public function generateDotVirtualAccount(User $user)
     {
         return $this->createDotVirtualAccount([

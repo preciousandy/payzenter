@@ -65,6 +65,6 @@ class Verification extends Component
             'is_otp_verified' => true
         ]);
 
-        return $this->flash('success', 'OTP verified successfully', [], route('onboarding'));
+        return $this->flash('success', 'Email verified successfully! Welcome to your dashboard.', [], route('home'));
     }
 }

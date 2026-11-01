@@ -10,15 +10,96 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use KingFlamez\Rave\Facades\Rave;
 
+function getStaticBanks(): array
+{
+  $banks = [
+    ['code' => '044', 'name' => 'Access Bank'],
+    ['code' => '023', 'name' => 'Citibank Nigeria'],
+    ['code' => '050', 'name' => 'Ecobank Nigeria'],
+    ['code' => '070', 'name' => 'Fidelity Bank'],
+    ['code' => '011', 'name' => 'First Bank of Nigeria'],
+    ['code' => '214', 'name' => 'First City Monument Bank (FCMB)'],
+    ['code' => '00103', 'name' => 'Globus Bank'],
+    ['code' => '058', 'name' => 'Guaranty Trust Bank (GTBank)'],
+    ['code' => '030', 'name' => 'Heritage Bank'],
+    ['code' => '301', 'name' => 'Jaiz Bank'],
+    ['code' => '082', 'name' => 'Keystone Bank'],
+    ['code' => '090267', 'name' => 'Kuda Bank'],
+    ['code' => '303', 'name' => 'Lotus Bank'],
+    ['code' => '090405', 'name' => 'Moniepoint Microfinance Bank'],
+    ['code' => '100004', 'name' => 'OPay (Paycom)'],
+    ['code' => '100033', 'name' => 'PalmPay'],
+    ['code' => '104', 'name' => 'Parallex Bank'],
+    ['code' => '076', 'name' => 'Polaris Bank'],
+    ['code' => '105', 'name' => 'PremiumTrust Bank'],
+    ['code' => '101', 'name' => 'Providus Bank'],
+    ['code' => '090175', 'name' => 'Rubies Bank'],
+    ['code' => '106', 'name' => 'Signature Bank'],
+    ['code' => '221', 'name' => 'Stanbic IBTC Bank'],
+    ['code' => '068', 'name' => 'Standard Chartered Bank'],
+    ['code' => '232', 'name' => 'Sterling Bank'],
+    ['code' => '100', 'name' => 'SunTrust Bank'],
+    ['code' => '302', 'name' => 'TAJ Bank'],
+    ['code' => '102', 'name' => 'Titan Trust Bank'],
+    ['code' => '032', 'name' => 'Union Bank of Nigeria'],
+    ['code' => '033', 'name' => 'United Bank for Africa (UBA)'],
+    ['code' => '215', 'name' => 'Unity Bank'],
+    ['code' => '090110', 'name' => 'VFD Microfinance Bank'],
+    ['code' => '035', 'name' => 'Wema Bank'],
+    ['code' => '057', 'name' => 'Zenith Bank'],
+    ['code' => '090470', 'name' => 'Dot MFB'],
+    ['code' => '090130', 'name' => 'Carbon'],
+    ['code' => '090551', 'name' => 'FairMoney Microfinance Bank'],
+  ];
+
+  usort($banks, fn($a, $b) => strcasecmp($a['name'], $b['name']));
+
+  return array_map(function ($b) {
+    return [
+      'id' => $b['code'],
+      'code' => $b['code'],
+      'name' => $b['name'],
+      'bankCode' => $b['code'],
+      'bankName' => $b['name'],
+    ];
+  }, $banks);
+}
+
 function getBanks()
 {
-  $banks  = Rave::banks()->nigeria();
+  try {
+    foreach ([env('FLW_LIVE_SECRET_KEY'), env('FLW_SECRET_KEY')] as $key) {
+      if (!$key) continue;
+      $res = Http::withToken($key)->timeout(6)->get('https://api.flutterwave.com/v3/banks/NG');
+      if ($res->successful()) {
+        $banks = $res->json();
+        if (is_array($banks) && !empty($banks['data']) && is_array($banks['data'])) {
+          $list = array_values(array_filter(array_map(function ($bank) {
+            if (!is_array($bank) || empty($bank['name'])) return null;
+            $code = (string) ($bank['code'] ?? $bank['id'] ?? '');
+            $name = (string) ($bank['name'] ?? '');
+            if ($code === '' || $name === '') return null;
+            return [
+              'id' => $code,
+              'code' => $code,
+              'name' => $name,
+              'bankCode' => $code,
+              'bankName' => $name,
+            ];
+          }, $banks['data'])));
 
-  return Arr::map($banks['data'], function ($bank) {
-    if (!in_array($bank['name'], excludedBanks())) {
-      return $bank;
+          if (!empty($list)) {
+            usort($list, fn($a, $b) => strcasecmp($a['name'], $b['name']));
+            return $list;
+          }
+        }
+      }
     }
-  });
+  } catch (\Throwable $th) {
+    // continue to fallback
+  }
+
+  return getDotBanks();
 }
 
 function excludedBanks()
@@ -39,64 +120,118 @@ function excludedBanks()
 
 function getDotBanks()
 {
+  // 1. Try Dot MFB if configured
   try {
     $baseUrl = rtrim((string) env("DOT_MFB_API_URL", ''), '/');
     $accessToken = getDotAccessToken();
 
-    if ($baseUrl === '' || !$accessToken) {
-      $banks = getBanks();
-      return array_values(array_filter(array_map(function ($bank) {
-        if (!is_array($bank)) {
-          return null;
+    if ($baseUrl !== '' && $accessToken) {
+      $res = Http::withHeaders([
+        'Content-Type' => 'application/json',
+        'Authorization' => 'Bearer ' . $accessToken
+      ])->timeout(5)->get($baseUrl . "/banking/banks");
+
+      if ($res->successful()) {
+        $data = $res->json();
+        $list = $data['data'] ?? $data;
+        if (is_array($list) && !empty($list)) {
+          $formatted = array_values(array_filter(array_map(function ($bank) {
+            if (!is_array($bank)) return null;
+            $code = (string) ($bank['code'] ?? $bank['bankCode'] ?? '');
+            $name = (string) ($bank['name'] ?? $bank['bankName'] ?? '');
+            if ($code === '' || $name === '') return null;
+            return [
+              'id' => $code,
+              'code' => $code,
+              'name' => $name,
+              'bankCode' => $code,
+              'bankName' => $name,
+            ];
+          }, $list)));
+
+          if (!empty($formatted)) {
+            usort($formatted, fn($a, $b) => strcasecmp($a['name'], $b['name']));
+            return $formatted;
+          }
         }
-
-        $code = $bank['code'] ?? null;
-        $name = $bank['name'] ?? null;
-        if (!is_string($code) || $code === '' || !is_string($name) || $name === '') {
-          return null;
-        }
-
-        return [
-          'code' => $code,
-          'name' => $name,
-        ];
-      }, $banks ?? [])));
-    }
-
-    $res = Http::withHeaders([
-      'Content-Type' => 'application/json',
-      'Authorization' => 'Bearer ' . $accessToken
-    ])->get($baseUrl . "/banking/banks");
-
-    $data = $res->json();
-
-
-    if ($res->successful()) {
-      $list = $data['data'] ?? $data;
-      if (!is_array($list)) {
-        return [];
       }
-
-      return array_values(array_filter(array_map(function ($bank) {
-        if (!is_array($bank)) {
-          return null;
-        }
-
-        $code = $bank['code'] ?? $bank['bankCode'] ?? null;
-        $name = $bank['name'] ?? $bank['bankName'] ?? null;
-        if (!is_string($code) || $code === '' || !is_string($name) || $name === '') {
-          return null;
-        }
-
-        return [
-          'code' => $code,
-          'name' => $name,
-        ];
-      }, $list)));
     }
   } catch (\Throwable $th) {
-    return [];
+    // continue
   }
+
+  // 2. Try Paystack Public Bank List (returns 290+ banks)
+  try {
+    $secretKey = config('paystack.secret_key') ?: env('PAYSTACK_SECRET_KEY');
+    $req = Http::timeout(6);
+    if (!empty($secretKey)) {
+      $req = $req->withHeaders(['Authorization' => 'Bearer ' . $secretKey]);
+    }
+    $res = $req->get('https://api.paystack.co/bank?country=nigeria');
+
+    if ($res->successful()) {
+      $data = $res->json();
+      $list = $data['data'] ?? [];
+      if (is_array($list) && !empty($list)) {
+        $formatted = array_values(array_filter(array_map(function ($bank) {
+          if (!is_array($bank)) return null;
+          $code = (string) ($bank['code'] ?? '');
+          $name = (string) ($bank['name'] ?? '');
+          if ($code === '' || $name === '') return null;
+          return [
+            'id' => $code,
+            'code' => $code,
+            'name' => $name,
+            'bankCode' => $code,
+            'bankName' => $name,
+          ];
+        }, $list)));
+
+        if (!empty($formatted)) {
+          usort($formatted, fn($a, $b) => strcasecmp($a['name'], $b['name']));
+          return $formatted;
+        }
+      }
+    }
+  } catch (\Throwable $th) {
+    // continue
+  }
+
+  // 3. Try Flutterwave with active keys
+  try {
+    foreach ([env('FLW_LIVE_SECRET_KEY'), env('FLW_SECRET_KEY')] as $k) {
+      if (!$k) continue;
+      $res = Http::withToken($k)->timeout(6)->get('https://api.flutterwave.com/v3/banks/NG');
+      if ($res->successful()) {
+        $banks = $res->json();
+        if (is_array($banks) && !empty($banks['data']) && is_array($banks['data'])) {
+          $formatted = array_values(array_filter(array_map(function ($bank) {
+            if (!is_array($bank)) return null;
+            $code = (string) ($bank['code'] ?? $bank['id'] ?? '');
+            $name = (string) ($bank['name'] ?? '');
+            if ($code === '' || $name === '') return null;
+            return [
+              'id' => $code,
+              'code' => $code,
+              'name' => $name,
+              'bankCode' => $code,
+              'bankName' => $name,
+            ];
+          }, $banks['data'])));
+
+          if (!empty($formatted)) {
+            usort($formatted, fn($a, $b) => strcasecmp($a['name'], $b['name']));
+            return $formatted;
+          }
+        }
+      }
+    }
+  } catch (\Throwable $th) {
+    // continue
+  }
+
+  // 4. Guaranteed Fallback to static list of Nigerian Banks (Never empty!)
+  return getStaticBanks();
 }
 
 function getDotAccessToken()

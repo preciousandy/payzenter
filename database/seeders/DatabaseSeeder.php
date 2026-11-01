@@ -62,8 +62,8 @@ class DatabaseSeeder extends Seeder
         // }
 
         $this->call(SettingSeeder::class);
-
-        // $this->call(PermissionSeeder::class);
+        $this->call(PermissionSeeder::class);
+        $this->call(PaymentTransactionSeeder::class);
 
         // $this->call(PageContentSeeder::class);
 

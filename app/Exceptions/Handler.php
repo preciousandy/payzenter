@@ -3,6 +3,7 @@
 namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Session\TokenMismatchException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -25,6 +26,27 @@ class Handler extends ExceptionHandler
     {
         $this->reportable(function (Throwable $e) {
             //
+        });
+
+        $this->renderable(function (TokenMismatchException $e, $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'CSRF token mismatch. Session expired.'], 419);
+            }
+
+            $referer = (string) $request->headers->get('referer', '');
+            $refererPath = parse_url($referer, PHP_URL_PATH) ?? '';
+
+            if (
+                $request->is('powerhouse*') ||
+                $request->is('admin*') ||
+                $request->routeIs('admin.*') ||
+                str_contains($refererPath, '/powerhouse') ||
+                str_contains($refererPath, '/admin')
+            ) {
+                return redirect()->route('admin.login')->with('error', 'Your session has expired. Please log in again.');
+            }
+
+            return redirect()->route('login')->with('error', 'Your session has expired. Please log in again.');
         });
     }
 }

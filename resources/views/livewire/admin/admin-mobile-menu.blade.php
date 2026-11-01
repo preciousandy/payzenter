@@ -38,7 +38,7 @@
     @can('view_user_transactions')
     <li class="w-full">
         <a href="{{route('admin.transactions')}}" @class(['font-medium p-3 w-full block hover:bg-indigo-500 rounded-lg', 'text-primary2 border-b-2 border-primary bg-white font-semibold'=> request()->routeIs('admin.transactions')])>
-            <span class="fa fa-credit-card mr-2"></span> User Transactions
+            <span class="fa fa-paper-plane mr-2"></span> Transfers & Withdrawals
         </a>
     </li>
     @endcan

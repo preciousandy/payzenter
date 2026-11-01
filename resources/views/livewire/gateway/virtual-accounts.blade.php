@@ -9,10 +9,23 @@
                 <p class="text-sm text-gray-500 mt-0.5">Dedicated virtual bank accounts for accepting payments and bank transfers</p>
             </div>
             <div class="flex items-center gap-2">
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                    <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                    PalmPay & Flutterwave Enabled
-                </span>
+                @if($palmpayEnabled)
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        PalmPay Enabled
+                    </span>
+                @endif
+                @if($udaraEnabled)
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        Udara360 Enabled
+                    </span>
+                @endif
+                @if(!$palmpayEnabled && !$udaraEnabled && !$flwEnabled)
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-800">
+                        Virtual Accounts Disabled by Admin
+                    </span>
+                @endif
             </div>
         </div>
 
@@ -59,16 +72,29 @@
                 <div class="space-y-4">
                     <div>
                         <x-input-label value="Select Provider" class="text-xs font-semibold text-gray-700" />
-                        <div class="grid grid-cols-2 gap-3 mt-1.5">
-                            <label class="flex items-center gap-2 p-3 border rounded-xl cursor-pointer transition {{ $provider === 'palmpay' ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 font-semibold' : 'border-gray-200 hover:bg-gray-50' }}">
-                                <input type="radio" wire:model.live="provider" value="palmpay" class="text-indigo-600 focus:ring-indigo-500">
-                                <span>PalmPay</span>
-                            </label>
-                            <label class="flex items-center gap-2 p-3 border rounded-xl cursor-pointer transition {{ $provider === 'flutterwave' ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 font-semibold' : 'border-gray-200 hover:bg-gray-50' }}">
-                                <input type="radio" wire:model.live="provider" value="flutterwave" class="text-indigo-600 focus:ring-indigo-500">
-                                <span>Flutterwave</span>
-                            </label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1.5">
+                            @if($palmpayEnabled)
+                                <label class="flex items-center gap-2 p-3 border rounded-xl cursor-pointer transition {{ $provider === 'palmpay' ? 'border-emerald-600 bg-emerald-50/50 text-emerald-900 font-semibold' : 'border-gray-200 text-gray-700 hover:border-gray-300' }}">
+                                    <input type="radio" wire:model.live="provider" value="palmpay" class="text-emerald-600 focus:ring-emerald-500">
+                                    <span>PalmPay</span>
+                                </label>
+                            @endif
+                            @if($udaraEnabled)
+                                <label class="flex items-center gap-2 p-3 border rounded-xl cursor-pointer transition {{ $provider === 'udara360' ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 font-semibold' : 'border-gray-200 text-gray-700 hover:border-gray-300' }}">
+                                    <input type="radio" wire:model.live="provider" value="udara360" class="text-indigo-600 focus:ring-indigo-500">
+                                    <span>Udara360</span>
+                                </label>
+                            @endif
+                            @if($flwEnabled)
+                                <label class="flex items-center gap-2 p-3 border rounded-xl cursor-pointer transition {{ $provider === 'flutterwave' ? 'border-amber-600 bg-amber-50/50 text-amber-900 font-semibold' : 'border-gray-200 text-gray-700 hover:border-gray-300' }}">
+                                    <input type="radio" wire:model.live="provider" value="flutterwave" class="text-amber-600 focus:ring-amber-500">
+                                    <span>Flutterwave</span>
+                                </label>
+                            @endif
                         </div>
+                        @if(!$palmpayEnabled && !$udaraEnabled && !$flwEnabled)
+                            <div class="text-xs text-rose-500 mt-1 font-medium">All virtual account providers are currently disabled by administrator.</div>
+                        @endif
                     </div>
 
                     <div>
@@ -78,7 +104,7 @@
                     </div>
 
                     <div>
-                        <x-primary-button wire:click="generate" class="w-full justify-center rounded-xl py-3 text-sm font-semibold shadow-sm">
+                        <x-primary-button wire:click="generate" :disabled="!$palmpayEnabled && !$udaraEnabled && !$flwEnabled" class="w-full justify-center rounded-xl py-3 text-sm font-semibold shadow-sm">
                             Generate {{ ucfirst($provider) }} Virtual Account
                         </x-primary-button>
                     </div>
@@ -137,9 +163,13 @@
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                         PalmPay
                                     </span>
+                                @elseif(strtolower($acc->provider ?? '') === 'udara360')
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                        Udara360
+                                    </span>
                                 @else
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                                        {{ ucfirst($acc->provider ?? 'Flutterwave') }}
+                                        {{ ucfirst($acc->provider ?? 'PalmPay') }}
                                     </span>
                                 @endif
                             </td>

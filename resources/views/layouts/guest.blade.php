@@ -102,9 +102,9 @@
 
     <body class=" text-black ">
 
-
-
-        <x-guest-navbar />
+        @unless(request()->routeIs('gateway.pay'))
+            <x-guest-navbar />
+        @endunless
 
         <main class="">
 
@@ -112,7 +112,9 @@
             @yield('content')
         </main>
 
-        @livewire('footer')
+        @unless(request()->routeIs('gateway.pay'))
+            @livewire('footer')
+        @endunless
 
         <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 

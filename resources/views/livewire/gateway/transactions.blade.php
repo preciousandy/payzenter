@@ -38,8 +38,15 @@
                 <x-input-label value="Provider" />
                 <select wire:model.live="provider" class="w-full mt-1 rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
                     <option value="">All</option>
-                    <option value="flutterwave">Flutterwave</option>
-                    <option value="palmpay">PalmPay</option>
+                    @if($enablePalmPay)
+                        <option value="palmpay">PalmPay</option>
+                    @endif
+                    @if($enableUdara360)
+                        <option value="udara360">Udara360</option>
+                    @endif
+                    @if($enableFlutterwave)
+                        <option value="flutterwave">Flutterwave</option>
+                    @endif
                 </select>
             </div>
             <div>
@@ -83,7 +90,15 @@
                                     {{ strtoupper($tx->status) }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3">{{ strtoupper((string) $tx->provider) }}</td>
+                            <td class="px-4 py-3">
+                                @if(strtolower((string) $tx->provider) === 'flutterwave' && !$enableFlutterwave)
+                                    GATEWAY
+                                @elseif(strtolower((string) $tx->provider) === 'udara360' && !$enableUdara360)
+                                    VIRTUAL BANK
+                                @else
+                                    {{ strtoupper((string) ($tx->provider ?: 'GATEWAY')) }}
+                                @endif
+                            </td>
                             <td class="px-4 py-3">
                                 <div class="text-gray-900">{{ $tx->customer_email }}</div>
                                 @if($tx->customer_phone)

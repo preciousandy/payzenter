@@ -37,6 +37,20 @@ class Transactions extends Component
 
     public function render()
     {
+        $enableFlutterwave = \App\Helpers\SettingHelper::isFlutterwaveEnabled();
+        $enablePalmPay = \App\Helpers\SettingHelper::isPalmPayEnabled();
+        $enableUdara360 = \App\Helpers\SettingHelper::isUdara360Enabled();
+
+        if ($this->provider === 'flutterwave' && !$enableFlutterwave) {
+            $this->provider = '';
+        }
+        if ($this->provider === 'udara360' && !$enableUdara360) {
+            $this->provider = '';
+        }
+        if ($this->provider === 'palmpay' && !$enablePalmPay) {
+            $this->provider = '';
+        }
+
         $query = GatewayTransaction::query()
             ->where('merchant_id', auth()->id())
             ->orderByDesc('id');
@@ -65,6 +79,9 @@ class Transactions extends Component
 
         return view('livewire.gateway.transactions', [
             'transactions' => $transactions,
+            'enableFlutterwave' => $enableFlutterwave,
+            'enablePalmPay' => $enablePalmPay,
+            'enableUdara360' => $enableUdara360,
         ])->title('Transactions');
     }
 }

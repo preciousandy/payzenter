@@ -21,8 +21,9 @@ class PaymentLinkCheckout extends Component
     public $step = 'info';
     public $payment_method;
     public $timeLeft = 1800;
-    public $enable_flutterwave = true;
+    public $enable_flutterwave = false;
     public $enable_palmpay = true;
+    public $enable_paystack_card = true;
     public $verificationMessage;
 
     public $card_number;
@@ -51,6 +52,15 @@ class PaymentLinkCheckout extends Component
         $tx = $this->getTransaction();
         $this->loadGatewaySettings();
 
+        if (($tx->provider === 'paystack' || $tx->provider === 'palmpay') && $tx->status !== 'success') {
+            if ($tx->provider === 'paystack') {
+                $this->checkPaystackStatus();
+            } else {
+                $this->checkPalmPayStatus();
+            }
+            $tx = $this->getTransaction();
+        }
+
         if ($tx->status === 'success') {
             $this->step = 'success';
         } elseif ($tx->customer_email) {
@@ -59,9 +69,6 @@ class PaymentLinkCheckout extends Component
             $this->customer_phone = $tx->customer_phone;
 
             if ($tx->method === 'card') {
-                if ($this->enable_palmpay) {
-                    return $this->payWithPalmPayCard($tx);
-                }
                 $this->step = 'card_form';
                 $this->payment_method = 'card';
             } elseif ($tx->method === 'ussd') {
@@ -82,8 +89,9 @@ class PaymentLinkCheckout extends Component
 
     private function loadGatewaySettings()
     {
-        $this->enable_flutterwave = (bool) SettingHelper::get(SettingHelper::ENABLE_FLUTTERWAVE, '1');
-        $this->enable_palmpay = (bool) SettingHelper::get(SettingHelper::ENABLE_PALMPAY, '1');
+        $this->enable_flutterwave = SettingHelper::isFlutterwaveEnabled();
+        $this->enable_palmpay = SettingHelper::isPalmPayEnabled();
+        $this->enable_paystack_card = SettingHelper::isPaystackCardEnabled();
     }
 
     private function getTransaction()
@@ -132,26 +140,29 @@ class PaymentLinkCheckout extends Component
     public function selectMethod($method)
     {
         $this->loadGatewaySettings();
+        $this->resetErrorBag();
         $this->cardError = null;
         $this->otpError = null;
         $this->ussdError = null;
-
-        if (($method === 'card' && !$this->enable_flutterwave && !$this->enable_palmpay) ||
-            ($method === 'ussd' && !$this->enable_flutterwave && !$this->enable_palmpay) ||
-            ($method === 'palmpay' && !$this->enable_palmpay)) {
-            $this->addError('payment_method', 'This payment method is currently disabled');
-            return;
-        }
 
         $this->payment_method = $method;
         $tx = $this->getTransaction();
 
         if ($method === 'card') {
-            if ($this->enable_palmpay) {
-                return $this->payWithPalmPayCard($tx);
+            if (!$this->enable_paystack_card && !$this->enable_flutterwave) {
+                $this->addError('payment_method', 'Card payment is currently disabled.');
+                return;
             }
             return $this->initCardForm($tx);
-        } elseif ($method === 'ussd') {
+        }
+
+        if (($method === 'ussd' && !$this->enable_flutterwave && !$this->enable_palmpay) ||
+            ($method === 'palmpay' && !$this->enable_palmpay)) {
+            $this->addError('payment_method', 'This payment method is currently disabled');
+            return;
+        }
+
+        if ($method === 'ussd') {
             if ($this->enable_palmpay) {
                 return $this->payWithPalmPayUssd($tx);
             }
@@ -457,69 +468,56 @@ class PaymentLinkCheckout extends Component
         }
     }
 
-    private function payWithPalmPayCard($tx)
+    public function checkPalmPayStatus()
     {
+        $tx = $this->getTransaction();
+
+        if ($tx->status === 'success') {
+            $this->step = 'success';
+            return;
+        }
+
+        if (!$tx->palmpay_order_id && !$tx->palmpay_order_no) {
+            return;
+        }
+
         try {
             $palmPay = new \App\Services\PalmPayService();
-            $orderId = bin2hex(random_bytes(16));
-            $notifyUrl = route('webhook.palmpay', [], true);
-
-            $email = $this->customer_email;
-            $phone = $this->customer_phone ?? null;
-
-            $orderPayload = [
-                'amount' => $tx->charged_amount ?? $tx->amount,
-                'currency' => $tx->currency ?? 'NGN',
-                'notifyUrl' => $notifyUrl,
-                'orderId' => $orderId,
-                'title' => config('app.name') . ' Payment',
-                'description' => 'Card Payment for ' . $tx->reference,
-                'callBackUrl' => $tx->return_url ?: config('app.url'),
-                'productType' => 'online_payment',
-                'userId' => $email,
-            ];
-
-            if ($phone !== null && $phone !== '') {
-                $orderPayload['userMobileNo'] = $phone;
-            }
-
-            $orderRes = $palmPay->createOrder($orderPayload);
-            $orderProviderData = $orderRes['data'] ?? [];
-
-            $checkoutUrl = $orderProviderData['checkoutUrl'] ?? null;
-
-            if (empty($checkoutUrl)) {
-                throw new \Exception('PalmPay did not return a checkout URL');
-            }
-
-            $tx->update([
-                'palmpay_order_id' => $orderId,
-                'palmpay_order_no' => $orderProviderData['orderNo'] ?? null,
-                'provider' => 'palmpay',
-                'provider_reference' => $orderProviderData['orderNo'] ?? $orderId,
-                'status' => 'paying',
-                'raw_provider_response' => [
-                    'order' => $orderProviderData,
-                ],
+            $payload = array_filter([
+                'orderId' => $tx->palmpay_order_id,
+                'orderNo' => $tx->palmpay_order_no,
             ]);
 
-            return redirect()->away($checkoutUrl);
+            $res = $palmPay->queryOrderStatus($payload);
+            $data = $res['data'] ?? [];
+            $orderStatus = strtolower((string) ($data['orderStatus'] ?? ($data['status'] ?? '')));
 
+            if (in_array($orderStatus, ['2', 'success', 'successful', '00', '00000000', 'completed'])) {
+                $tx->update([
+                    'status' => 'success',
+                    'paid_at' => $tx->paid_at ?? now(),
+                    'raw_provider_response' => array_merge($tx->raw_provider_response ?? [], ['query' => $data]),
+                ]);
+
+                $this->handleSuccessInternal($tx);
+                $this->step = 'success';
+            } elseif (in_array($orderStatus, ['3', '99', 'fail', 'failed', 'closed', 'canceled', 'cancelled'])) {
+                $tx->update([
+                    'status' => 'failed',
+                    'raw_provider_response' => array_merge($tx->raw_provider_response ?? [], ['query' => $data]),
+                ]);
+                $this->verificationMessage = 'Bank transfer was not completed or has expired. Please try again.';
+                $this->step = 'method';
+            }
         } catch (\Throwable $e) {
-            $this->addError('payment_method', 'PalmPay Card Payment error: ' . $e->getMessage());
+            // Silently ignore network query errors while polling
         }
     }
 
     public function submitCard()
     {
-        $tx = $this->getTransaction();
-
-        if ($this->enable_palmpay) {
-            return $this->payWithPalmPayCard($tx);
-        }
-
         $this->validate([
-            'card_number' => 'required|string|digits_between:13,19',
+            'card_number' => 'required|string|digits_between:12,19',
             'card_cvv' => 'required|string|digits_between:3,4',
             'card_expiry_month' => 'required|string|digits:2',
             'card_expiry_year' => 'required|string|digits:2',
@@ -532,99 +530,193 @@ class PaymentLinkCheckout extends Component
 
         $tx = $this->getTransaction();
 
+        return $this->payWithPaystackCard($tx);
+    }
+
+    private function payWithPaystackCard($tx)
+    {
         try {
-            $flwBaseUrl = rtrim((string) env('FLW_API_URL', ''), '/');
-            $flwSecret = (string) env('FLW_LIVE_SECRET_KEY', '');
-            if ($flwSecret === '') {
-                $flwSecret = (string) env('FLW_SECRET_KEY', '');
+            $paystack = new \App\Services\PaystackService();
+            $email = $this->customer_email;
+            $amountNgn = ((float) ($tx->charged_amount ?? $tx->amount)) / 100;
+            $callbackUrl = route('gateway.pay', ['reference' => $tx->reference]);
+
+            // If a Paystack charge is already pending for this transaction, and PIN is submitted:
+            if ($tx->provider === 'paystack' && !empty($tx->provider_reference) && !empty($this->card_pin) && $tx->status === 'paying') {
+                \Illuminate\Support\Facades\Log::info('PaymentLinkCheckout: Submitting PIN for existing pending Paystack charge', [
+                    'tx_ref' => $tx->reference,
+                    'provider_reference' => $tx->provider_reference,
+                ]);
+
+                $response = $paystack->submitPin($this->card_pin, $tx->provider_reference);
+                return $this->handlePaystackChargeResponse($response, $tx, $tx->provider_reference);
             }
 
-            if ($flwBaseUrl === '' || $flwSecret === '') {
-                throw new \Exception('Card payment is not configured');
-            }
+            // Generate a unique reference for the fresh charge
+            $reference = $tx->reference . '_ps_' . \Illuminate\Support\Str::random(8) . '_' . time();
 
-            $expiry = $this->card_expiry_month . '/' . $this->card_expiry_year;
-            $redirectUrl = route('gateway.flutterwave.callback', ['reference' => $tx->reference], true);
+            // Attempt direct card charge if card details supplied
+            $cleanCard = preg_replace('/\D/', '', (string) $this->card_number);
 
-            $firstname = 'Customer';
-            $lastname = $tx->reference;
-            if ($this->card_name) {
-                $parts = explode(' ', trim($this->card_name), 2);
-                $firstname = $parts[0];
-                $lastname = $parts[1] ?? $tx->reference;
-            } elseif ($this->customer_name) {
-                $parts = explode(' ', trim($this->customer_name), 2);
-                $firstname = $parts[0];
-                $lastname = $parts[1] ?? $tx->reference;
-            }
+            if (strlen($cleanCard) >= 12 && !empty($this->card_cvv) && !empty($this->card_expiry_month) && !empty($this->card_expiry_year)) {
+                $expiryYear = strlen($this->card_expiry_year) === 2 ? ('20' . $this->card_expiry_year) : $this->card_expiry_year;
 
-            $payload = [
-                'tx_ref' => $tx->reference . '_' . time(),
-                'amount' => ((float) ($tx->charged_amount ?? $tx->amount) / 100),
-                'email' => $this->customer_email,
-                'phone_number' => $this->customer_phone,
-                'currency' => $tx->currency ?? 'NGN',
-                'redirect_url' => $redirectUrl,
-                'card_number' => preg_replace('/\s+/', '', $this->card_number),
-                'cvv' => $this->card_cvv,
-                'expiry_month' => $this->card_expiry_month,
-                'expiry_year' => $this->card_expiry_year,
-                'expiry_date' => $expiry,
-                'firstname' => $firstname,
-                'lastname' => $lastname,
-                'meta' => [
-                    'gateway_reference' => $tx->reference,
-                    'merchant_id' => $tx->merchant_id,
-                ],
-            ];
-
-            if ($this->card_pin) {
-                $payload['pin'] = $this->card_pin;
-                $payload['authorization'] = [
-                    'mode' => 'pin',
-                    'pin' => $this->card_pin,
+                $cardPayload = [
+                    'number' => $cleanCard,
+                    'cvv' => $this->card_cvv,
+                    'expiry_month' => $this->card_expiry_month,
+                    'expiry_year' => $expiryYear,
                 ];
-            }
 
-            // Encrypt the payload using Triple DES (3DES-24)
-            $encKey = $this->getEncryptionKey($flwSecret);
-            $encryptedData = $this->encryptPayload($encKey, $payload);
-
-            $chargePayload = [
-                'client' => $encryptedData,
-            ];
-
-            $charge = Http::withHeaders([
-                'Accept' => 'application/json',
-                'Content-Type' => 'application/json',
-                'Authorization' => 'Bearer ' . $flwSecret,
-            ])->post($flwBaseUrl . '/charges?type=card', $chargePayload);
-
-            $json = $charge->json();
-
-            if (!$charge->successful() || ($json['status'] ?? null) !== 'success') {
-                $msg = $json['message'] ?? 'Card charge failed';
-                if (isset($json['data']['processor_response'])) {
-                    $msg .= ': ' . $json['data']['processor_response'];
+                if (!empty($this->card_pin)) {
+                    $cardPayload['pin'] = $this->card_pin;
                 }
-                throw new \Exception($msg);
+
+                \Illuminate\Support\Facades\Log::info('PaymentLinkCheckout: Charging card directly via Paystack', [
+                    'tx_ref' => $tx->reference,
+                    'email' => $email,
+                    'amount' => $amountNgn,
+                    'reference' => $reference,
+                ]);
+
+                $response = $paystack->chargeCard(
+                    $email,
+                    $amountNgn,
+                    $cardPayload,
+                    $reference,
+                    [
+                        'gateway_reference' => $tx->reference,
+                        'merchant_id' => $tx->merchant_id,
+                    ]
+                );
+
+                if (!empty($response['status'])) {
+                    $dataStatus = strtolower((string) ($response['data']['status'] ?? ''));
+                    if (in_array($dataStatus, ['send_pin', 'send_otp', 'open_url', 'success', 'pending'])) {
+                        return $this->handlePaystackChargeResponse($response, $tx, $reference);
+                    }
+                }
+
+                // If direct card charge returned a failure, display it on the card form
+                $errMsg = $response['data']['message'] ?? ($response['message'] ?? null);
+                if ($errMsg === 'Charge attempted') {
+                    $errMsg = $response['data']['message'] ?? 'Card authorization failed or could not be processed at this time. Please check your card details or try another card.';
+                }
+
+                $this->cardError = $errMsg ?? 'Card could not be processed at this time. Please check your card details or try another card.';
+                $this->processing = false;
+                return;
             }
 
-            $flwStatus = strtolower((string) ($json['data']['status'] ?? ''));
-            $authMode = strtolower((string) ($json['data']['meta']['authorization']['mode'] ?? ''));
+            // Paystack Transaction Initialization (Redirect Checkout)
+            // Generate a fresh unique reference so Paystack doesn't reject as Duplicate Transaction Reference
+            $initReference = $tx->reference . '_ps_' . \Illuminate\Support\Str::random(8) . '_' . time();
 
-            $tx->update([
-                'provider' => 'flutterwave',
-                'provider_reference' => $json['data']['id'] ?? $tx->reference,
-                'raw_provider_response' => $json,
-                'status' => 'paying',
+            \Illuminate\Support\Facades\Log::info('PaymentLinkCheckout: Initializing Paystack card checkout redirect', [
+                'tx_ref' => $tx->reference,
+                'email' => $email,
+                'amount' => $amountNgn,
+                'reference' => $initReference,
             ]);
 
-            if ($flwStatus === 'successful') {
+            $result = $paystack->initializeTransaction(
+                $amountNgn,
+                $email,
+                $initReference,
+                $callbackUrl,
+                [
+                    'gateway_reference' => $tx->reference,
+                    'merchant_id' => $tx->merchant_id,
+                ]
+            );
+
+            if (!empty($result['status']) && !empty($result['data']['authorization_url'])) {
                 $tx->update([
-                    'provider_transaction_id' => (string) ($json['data']['id'] ?? ''),
+                    'provider' => 'paystack',
+                    'provider_reference' => $initReference,
+                    'status' => 'paying',
+                    'raw_provider_response' => $result,
+                ]);
+
+                $this->processing = false;
+                return redirect()->away($result['data']['authorization_url']);
+            }
+
+            throw new \Exception($result['message'] ?? 'Failed to initialize Paystack payment.');
+
+        } catch (\Throwable $e) {
+            $this->processing = false;
+            $this->cardError = 'Paystack Card Payment error: ' . $e->getMessage();
+        }
+    }
+
+    private function handlePaystackChargeResponse(array $response, $tx, string $reference)
+    {
+        if (empty($response['status'])) {
+            $rawMsg = $response['message'] ?? 'Card authorization failed.';
+            if ($rawMsg === 'Charge attempted') {
+                $rawMsg = 'Card authorization failed. Please check your card details and PIN and try again.';
+            }
+            $this->cardError = $rawMsg;
+            $this->processing = false;
+            return;
+        }
+
+        $data = $response['data'] ?? [];
+        $status = strtolower((string) ($data['status'] ?? ''));
+
+        $tx->update([
+            'provider' => 'paystack',
+            'provider_reference' => $reference,
+            'status' => 'paying',
+            'raw_provider_response' => $response,
+        ]);
+
+        if ($status === 'send_otp') {
+            $this->flw_ref = $reference;
+            $this->auth_hint = $data['display_text'] ?? 'An OTP has been sent to your phone or email.';
+            $this->step = 'otp_form';
+            $this->processing = false;
+            return;
+        }
+
+        if ($status === 'send_pin') {
+            // If customer already entered a PIN, submit it immediately to complete authorization
+            if (!empty($this->card_pin)) {
+                $paystack = new \App\Services\PaystackService();
+                $pinResponse = $paystack->submitPin($this->card_pin, $reference);
+                return $this->handlePaystackChargeResponse($pinResponse, $tx, $reference);
+            }
+
+            $this->cardError = 'Please enter your 4-digit card PIN to authorize the transaction.';
+            $this->processing = false;
+            return;
+        }
+
+        if ($status === 'open_url' && !empty($data['url'])) {
+            $this->processing = false;
+            return redirect()->away($data['url']);
+        }
+
+        if ($status === 'success') {
+            $tx->update([
+                'status' => 'success',
+                'paid_at' => now(),
+            ]);
+            $this->handleSuccessInternal($tx);
+            $this->processing = false;
+            $this->step = 'success';
+            return;
+        }
+
+        if ($status === 'pending') {
+            $paystack = new \App\Services\PaystackService();
+            $verify = $paystack->verifyTransaction($reference);
+            if (!empty($verify['status']) && ($verify['data']['status'] ?? '') === 'success') {
+                $tx->update([
                     'status' => 'success',
-                    'paid_at' => $tx->paid_at ?? now(),
+                    'paid_at' => now(),
+                    'raw_provider_response' => $verify,
                 ]);
                 $this->handleSuccessInternal($tx);
                 $this->processing = false;
@@ -632,28 +724,51 @@ class PaymentLinkCheckout extends Component
                 return;
             }
 
-            $this->flw_ref = $json['data']['flw_ref'] ?? null;
-            $this->auth_mode = $authMode;
-            $this->auth_hint = $json['data']['meta']['authorization']['note'] ?? null;
-            $this->auth_url = $json['data']['meta']['authorization']['redirect'] ?? null;
-
-            if ($this->auth_url && $authMode === 'redirect') {
-                $this->processing = false;
-                return redirect()->away($this->auth_url);
-            }
-
-            if ($authMode === 'otp') {
-                $this->step = 'otp_form';
-            } elseif ($authMode === 'pin') {
-                $this->cardError = 'Please enter your card PIN';
-            } elseif ($authMode === 'avs_noauth') {
-                $this->cardError = 'Address verification required. Please try again with PIN.';
-            }
-
+            $this->cardError = 'Payment is processing. Please wait a moment.';
             $this->processing = false;
+            return;
+        }
+
+        // Terminal/failed or other status
+        $gatewayMsg = $data['gateway_response'] ?? ($response['message'] ?? 'Payment failed.');
+        if ($gatewayMsg === 'Charge attempted') {
+            $gatewayMsg = 'Card authorization failed or declined. Please check your Card PIN and try again.';
+        }
+        $this->cardError = $gatewayMsg;
+        $this->processing = false;
+    }
+
+    public function checkPaystackStatus()
+    {
+        $tx = $this->getTransaction();
+
+        if ($tx->status === 'success') {
+            $this->step = 'success';
+            return;
+        }
+
+        $ref = request()->query('reference') ?? request()->query('trxref') ?? $tx->provider_reference;
+
+        if (!$ref) {
+            return;
+        }
+
+        try {
+            $paystack = new \App\Services\PaystackService();
+            $verify = $paystack->verifyTransaction($ref);
+
+            if (!empty($verify['status']) && isset($verify['data']['status']) && $verify['data']['status'] === 'success') {
+                $tx->update([
+                    'status' => 'success',
+                    'paid_at' => $tx->paid_at ?? now(),
+                    'raw_provider_response' => array_merge($tx->raw_provider_response ?? [], ['verify' => $verify['data']]),
+                ]);
+
+                $this->handleSuccessInternal($tx);
+                $this->step = 'success';
+            }
         } catch (\Throwable $e) {
-            $this->cardError = $e->getMessage();
-            $this->processing = false;
+            // Silently ignore errors during status polling
         }
     }
 
@@ -667,6 +782,39 @@ class PaymentLinkCheckout extends Component
         $this->otpError = null;
 
         $tx = $this->getTransaction();
+
+        if ($tx->provider === 'paystack') {
+            try {
+                $paystack = new \App\Services\PaystackService();
+                $ref = $this->flw_ref ?? ($tx->provider_reference ?? $tx->reference);
+                $res = $paystack->submitOtp($this->otp, $ref);
+
+                if (!empty($res['status']) && (($res['data']['status'] ?? '') === 'success')) {
+                    $tx->update([
+                        'status' => 'success',
+                        'paid_at' => now(),
+                        'raw_provider_response' => $res,
+                    ]);
+                    $this->handleSuccessInternal($tx);
+                    $this->processing = false;
+                    $this->step = 'success';
+                    return;
+                }
+
+                $data = $res['data'] ?? [];
+                $status = strtolower((string) ($data['status'] ?? ''));
+                if ($status === 'open_url' && !empty($data['url'])) {
+                    $this->processing = false;
+                    return redirect()->away($data['url']);
+                }
+
+                throw new \Exception($res['message'] ?? 'OTP validation failed');
+            } catch (\Throwable $e) {
+                $this->otpError = $e->getMessage();
+                $this->processing = false;
+                return;
+            }
+        }
 
         try {
             $flwBaseUrl = rtrim((string) env('FLW_API_URL', ''), '/');
@@ -749,7 +897,11 @@ class PaymentLinkCheckout extends Component
             }
         }
 
-        return $this->payWithFlutterwaveTransfer($tx);
+        if ($this->enable_flutterwave) {
+            return $this->payWithFlutterwaveTransfer($tx);
+        }
+
+        $this->addError('payment_method', 'Bank transfer payment method is currently unavailable.');
     }
 
     private function payWithFlutterwaveTransfer($tx)
@@ -858,27 +1010,10 @@ class PaymentLinkCheckout extends Component
             return;
         }
 
-        if ($tx->provider === 'palmpay' && ($tx->palmpay_order_id || $tx->palmpay_order_no)) {
-            try {
-                $palmPay = new PalmPayService();
-                $res = $palmPay->queryOrderStatus([
-                    'orderId' => $tx->palmpay_order_id,
-                    'orderNo' => $tx->palmpay_order_no,
-                ]);
-
-                $orderStatus = $res['data']['orderStatus'] ?? null;
-                if ((string) $orderStatus === '2' || $orderStatus === 2) {
-                    $tx->update([
-                        'status' => 'success',
-                        'paid_at' => $tx->paid_at ?? now(),
-                        'raw_provider_response' => $res,
-                    ]);
-                    $this->handleSuccessInternal($tx);
-                    $this->step = 'success';
-                }
-            } catch (\Throwable $e) {
-                // background check silent fail
-            }
+        if ($tx->provider === 'paystack' && $tx->provider_reference && $tx->status !== 'success') {
+            $this->checkPaystackStatus();
+        } elseif ($tx->provider === 'palmpay' && ($tx->palmpay_order_id || $tx->palmpay_order_no)) {
+            $this->checkPalmPayStatus();
         }
     }
 
@@ -960,14 +1095,14 @@ class PaymentLinkCheckout extends Component
             $chargeNgn = $chargeKobo / 100;
 
             $merchant = $tx->merchant;
-            $merchant->wallet_balance += $tx->amount;
+            $merchant->wallet_balance += $amountNgn;
             if ($tx->charge_mode === 'merchant') {
-                $merchant->wallet_balance -= $chargeKobo;
+                $merchant->wallet_balance -= $chargeNgn;
             }
             $merchant->save();
 
             $merchant->transactions()->create([
-                'amount' => $tx->amount,
+                'amount' => $amountNgn,
                 'type' => UserTransaction::TYPE_CREDIT,
                 'status' => UserTransaction::STATUS_SUCCESSFUL,
                 'source' => UserTransaction::SOURCE_BANK_TRANSFER,
@@ -975,15 +1110,15 @@ class PaymentLinkCheckout extends Component
                 'reference' => $tx->reference,
             ]);
 
-            if ($chargeKobo > 0 && $tx->charge_mode === 'merchant') {
+            if ($chargeNgn > 0 && $tx->charge_mode === 'merchant') {
                 $merchant->transactions()->create([
-                    'amount' => $chargeKobo,
+                    'amount' => $chargeNgn,
                     'type' => UserTransaction::TYPE_DEBIT,
                     'status' => UserTransaction::STATUS_SUCCESSFUL,
                     'source' => UserTransaction::SOURCE_BANK_TRANSFER,
                     'message' => 'Gateway payment charge: ₦' . number_format($chargeNgn, 2),
                     'reference' => $tx->reference,
-                    'fee' => $chargeKobo,
+                    'fee' => $chargeNgn,
                 ]);
             }
 
@@ -999,6 +1134,7 @@ class PaymentLinkCheckout extends Component
     public function goBackToMethod()
     {
         $this->step = 'method';
+        $this->resetErrorBag();
         $this->cardError = null;
         $this->otpError = null;
         $this->ussdError = null;

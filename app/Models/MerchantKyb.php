@@ -22,5 +22,41 @@ class MerchantKyb extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function getIdentityDocumentUrlAttribute()
+    {
+        return $this->identity_document_path ? asset('storage/' . $this->identity_document_path) : null;
+    }
+
+    public function getProofOfAddressUrlAttribute()
+    {
+        return $this->proof_of_address_path ? asset('storage/' . $this->proof_of_address_path) : null;
+    }
+
+    public function getBusinessLogoUrlAttribute()
+    {
+        return $this->business_logo_path ? asset('storage/' . $this->business_logo_path) : null;
+    }
+
+    public function getBusinessResolutionUrlAttribute()
+    {
+        return $this->business_resolution_path ? asset('storage/' . $this->business_resolution_path) : null;
+    }
+
+    public function getCompanyProfileUrlAttribute()
+    {
+        return $this->company_profile_path ? asset('storage/' . $this->company_profile_path) : null;
+    }
+
+    public function getStatusReportUrlAttribute()
+    {
+        return $this->status_report_path ? asset('storage/' . $this->status_report_path) : null;
+    }
+
+    public function getBusinessAddressVerificationUrlAttribute()
+    {
+        return $this->business_address_verification_path ? asset('storage/' . $this->business_address_verification_path) : null;
+    }
 }
+
 

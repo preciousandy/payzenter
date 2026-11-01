@@ -17,5 +17,8 @@ class VerifyCsrfToken extends Middleware
         '/webhook/transfer',
         '/webhook/fund-walllet',
         '/webhook/palmpay',
+        '/webhook/paystack',
+        '/webhook/udara360',
+        '/webhook/udara',
     ];
 }

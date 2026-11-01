@@ -54,6 +54,16 @@ class SettingHelper
   const GATEWAY_PAYMENT_PERCENTAGE_FEE = 'gateway_payment_percentage_fee';
   const ENABLE_FLUTTERWAVE = 'enable_flutterwave';
   const ENABLE_PALMPAY = 'enable_palmpay';
+  const ENABLE_UDARA360 = 'enable_udara360';
+  const ENABLE_PAYSTACK_CARD = 'enable_paystack_card';
+  const DEFAULT_VIRTUAL_ACCOUNT_PROVIDER = 'default_virtual_account_provider';
+  const UDARA360_BASE_URL = 'udara360_base_url';
+  const UDARA360_CLIENT_ID = 'udara360_client_id';
+  const UDARA360_CLIENT_SECRET = 'udara360_client_secret';
+  const UDARA360_PARENT_ACCOUNT = 'udara360_parent_account';
+  const UDARA360_PRODUCT_CODE = 'udara360_product_code';
+  const UDARA360_BANK_NAME = 'udara360_bank_name';
+  const UDARA360_BANK_CODE = 'udara360_bank_code';
 
   const RELOADLY_ACCESS_TOKEN = 'reload_access_token';
 
@@ -70,5 +80,25 @@ class SettingHelper
       ['key' => $key],
       ['value' => $value]
     );
+  }
+
+  public static function isPalmPayEnabled(): bool
+  {
+    return filter_var(self::get(self::ENABLE_PALMPAY, '1'), FILTER_VALIDATE_BOOLEAN);
+  }
+
+  public static function isUdara360Enabled(): bool
+  {
+    return filter_var(self::get(self::ENABLE_UDARA360, '1'), FILTER_VALIDATE_BOOLEAN);
+  }
+
+  public static function isFlutterwaveEnabled(): bool
+  {
+    return filter_var(self::get(self::ENABLE_FLUTTERWAVE, '0'), FILTER_VALIDATE_BOOLEAN);
+  }
+
+  public static function isPaystackCardEnabled(): bool
+  {
+    return filter_var(self::get(self::ENABLE_PAYSTACK_CARD, '1'), FILTER_VALIDATE_BOOLEAN);
   }
 }

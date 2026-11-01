@@ -7,8 +7,8 @@
             </svg>
         </button>
 
-        <a href="{{route('home')}}" class="font-semibold flex items-center space-x-1 lg:hidden">
-         <!--   <img src="{{asset('')}}" alt="Swift pay logo" class="h-12 md:h-16">-->
+        <a href="{{route('admin.dashboard')}}" class="font-semibold flex items-center space-x-1 lg:hidden">
+       
             <span class="text-primary text-sm">Admin</span>
         </a>
 

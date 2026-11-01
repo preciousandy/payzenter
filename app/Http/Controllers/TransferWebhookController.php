@@ -48,13 +48,13 @@ class TransferWebhookController extends Controller
 
             // Update merchant's wallet
             $merchant = $tx->merchant;
-            $merchant->wallet_balance += $tx->amount;
-            $merchant->wallet_balance -= $chargeKobo;
+            $merchant->wallet_balance += $amountNgn;
+            $merchant->wallet_balance -= $chargeNgn;
             $merchant->save();
 
             // Create credit transaction for merchant
             $merchant->transactions()->create([
-                'amount' => $tx->amount,
+                'amount' => $amountNgn,
                 'type' => UserTransaction::TYPE_CREDIT,
                 'status' => UserTransaction::STATUS_SUCCESSFUL,
                 'source' => UserTransaction::SOURCE_BANK_TRANSFER,
@@ -63,15 +63,15 @@ class TransferWebhookController extends Controller
             ]);
 
             // Create debit transaction for charge if charge > 0
-            if ($chargeKobo > 0) {
+            if ($chargeNgn > 0) {
                 $merchant->transactions()->create([
-                    'amount' => $chargeKobo,
+                    'amount' => $chargeNgn,
                     'type' => UserTransaction::TYPE_DEBIT,
                     'status' => UserTransaction::STATUS_SUCCESSFUL,
                     'source' => UserTransaction::SOURCE_BANK_TRANSFER,
                     'message' => 'Gateway payment charge: ₦' . number_format($chargeNgn, 2),
                     'reference' => $tx->reference,
-                    'fee' => $chargeKobo,
+                    'fee' => $chargeNgn,
                 ]);
             }
 

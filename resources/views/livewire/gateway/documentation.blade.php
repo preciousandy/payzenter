@@ -93,10 +93,10 @@
     "method": "card",
     "status": "unpaid",
     "provider": {
-      "name": "flutterwave",
+      "name": "{{ $enablePalmPay ? 'palmpay' : ($enableFlutterwave ? 'flutterwave' : 'standard') }}",
       "reference": "gtw_xxxxxxxxxxxxxxxxxxxxxxxx",
       "transaction_id": null,
-      "checkout_url": "https://checkout.flutterwave.com/..."
+      "checkout_url": "{{ rtrim(config('app.url'), '/') }}/gateway/pay/gtw_xxxxxxxxxxxxxxxxxxxxxxxx"
     }
   }
 }</code></pre>
@@ -105,7 +105,7 @@
             <div class="border border-gray-200 rounded-xl p-4">
                 <div class="font-semibold text-gray-900">Verify Transaction</div>
                 <div class="mt-2 font-mono text-xs bg-gray-50 border border-gray-200 rounded-xl p-3 overflow-x-auto">
-                    GET https://payzenter.com/api/gateway/payments/verify/{reference}
+                    GET {{ rtrim(config('app.url'), '/') }}/api/gateway/payments/verify/{reference}
                 </div>
             </div>
 
@@ -114,9 +114,11 @@
                 <div class="mt-2 font-mono text-xs bg-gray-50 border border-gray-200 rounded-xl p-3 overflow-x-auto">
                     POST {{ rtrim(config('app.url'), '/') }}/api/gateway/payments/{reference}/refresh
                 </div>
+                @if($enableFlutterwave)
                 <div class="mt-3 text-xs text-gray-500">
                     For Flutterwave, refresh requires <span class="font-semibold">provider_transaction_id</span> which is set after the customer completes payment and is redirected back via the callback flow.
                 </div>
+                @endif
             </div>
 
             <div class="border border-gray-200 rounded-xl p-4">
@@ -125,8 +127,14 @@
                 <div class="mt-2 text-xs text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-100">
                     <span class="font-bold italic">Note</span>: The account name will be automatically prefixed with the company abbreviation (e.g., "{{ getCompanyAbbreviation() }} {{ config('app.name') }}") to ensure brand recognition at the bank.
                 </div>
+                @php
+                    $docProviders = [];
+                    if ($enablePalmPay) $docProviders[] = 'palmpay';
+                    if ($enableUdara360) $docProviders[] = 'udara360';
+                    if ($enableFlutterwave) $docProviders[] = 'flutterwave';
+                @endphp
                 <div class="mt-2 text-xs text-blue-700 bg-blue-50 p-2 rounded-lg border border-blue-100">
-                    <span class="font-bold italic">PalmPay & Provider Selection</span>: Set <span class="font-semibold">"provider": "palmpay"</span> to generate a dedicated PalmPay Virtual Account. Omitting the provider or passing <span class="font-semibold">"flutterwave"</span> generates a Flutterwave virtual account.
+                    <span class="font-bold italic">Provider Selection</span>: Omitting the provider uses your system default provider. Available active providers: <span class="font-semibold">{{ implode(', ', $docProviders) }}</span>.
                 </div>
                 <div class="mt-4 font-mono text-xs bg-gray-50 border border-gray-200 rounded-xl p-3 overflow-x-auto">
                     POST {{ rtrim(config('app.url'), '/') }}/api/gateway/virtual-accounts
@@ -136,7 +144,7 @@
                     <div><span class="font-semibold">name</span> (string, required - customer name)</div>
                     <div><span class="font-semibold">phone</span> (string, required - customer phone)</div>
                     <div><span class="font-semibold">email</span> (string, optional - customer email)</div>
-                    <div><span class="font-semibold">provider</span> (string, optional - <code class="bg-gray-100 px-1 py-0.5 rounded font-mono">palmpay</code> | <code class="bg-gray-100 px-1 py-0.5 rounded font-mono">flutterwave</code>)</div>
+                    <div><span class="font-semibold">provider</span> (string, optional - {!! implode(' | ', array_map(fn($p) => "<code class=\"bg-gray-100 px-1 py-0.5 rounded font-mono\">$p</code>", $docProviders)) !!})</div>
                 </div>
 
                 <div class="mt-4 font-semibold text-gray-900">Example (cURL - PalmPay)</div>
@@ -174,7 +182,7 @@
                     Query parameters:
                     <ul class="list-disc list-inside mt-1 space-y-0.5">
                         <li><span class="font-semibold">phone</span> (string, optional) - Customer's phone number.</li>
-                        <li><span class="font-semibold">provider</span> (string, optional) - Filter by provider (<code class="bg-gray-100 px-1 py-0.5 rounded">palmpay</code> or <code class="bg-gray-100 px-1 py-0.5 rounded">flutterwave</code>).</li>
+                        <li><span class="font-semibold">provider</span> (string, optional) - Filter by provider ({!! implode(' or ', array_map(fn($p) => "<code class=\"bg-gray-100 px-1 py-0.5 rounded\">$p</code>", $docProviders)) !!}).</li>
                     </ul>
                 </div>
             </div>
@@ -185,7 +193,7 @@
                     GET {{ rtrim(config('app.url'), '/') }}/api/gateway/virtual-accounts?provider=palmpay
                 </div>
                 <div class="mt-3 text-xs text-gray-600">
-                    Returns a paginated list of all virtual accounts created under your merchant account. Filter optionally using <span class="font-semibold">provider=palmpay</span> or <span class="font-semibold">provider=flutterwave</span>.
+                    Returns a paginated list of all virtual accounts created under your merchant account. Filter optionally using <span class="font-semibold">provider={{ implode('</span> or <span class="font-semibold">provider=', $docProviders) }}</span>.
                 </div>
             </div>
 
@@ -210,8 +218,8 @@
   "paid_at": "2026-05-01T12:34:56.000000Z",
   "amount": 200000,
   "currency": "NGN",
-  "method": "card",
-  "provider": "flutterwave",
+  "method": "transfer",
+  "provider": "palmpay",
   "provider_reference": "gtw_xxxxxxxxxxxxxxxxxxxxxxxx",
   "provider_transaction_id": "1234567890"
 }</code></pre>
@@ -225,13 +233,13 @@
   "amount": 500000,
   "currency": "NGN",
   "funded_at": "2026-06-26T12:34:56.000000Z",
-  "provider": "flutterwave",
+  "provider": "palmpay",
   "provider_reference": "fund_xxxxxxxxxxxxx",
   "virtual_account": {
     "account_number": "1234567890",
-    "account_name": "ABC John Doe",
-    "bank_name": "Wema Bank",
-    "bank_code": "035",
+    "account_name": "{{ getCompanyAbbreviation() }} John Doe",
+    "bank_name": "PalmPay",
+    "bank_code": "000000",
     "customer_phone": "08012345678",
     "customer_email": "john@example.com",
     "merchant_ref": "08012345678",

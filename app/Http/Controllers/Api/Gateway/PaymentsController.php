@@ -81,12 +81,15 @@ class PaymentsController extends Controller
         $method = $data['method'];
         $callBackUrl = $data['return_url'];
 
-        $enableFlutterwave = (bool) SettingHelper::get(SettingHelper::ENABLE_FLUTTERWAVE, '1');
-        $enablePalmPay = (bool) SettingHelper::get(SettingHelper::ENABLE_PALMPAY, '1');
+        $enableFlutterwave = SettingHelper::isFlutterwaveEnabled();
+        $enablePalmPay = SettingHelper::isPalmPayEnabled();
 
         $requestedProvider = strtolower((string) $request->input('provider', ''));
         $preferredProvider = strtolower((string) ($request->user()->preferred_gateway_provider ?? ''));
 
+        if ($requestedProvider === 'udara360') {
+            return $this->error('Udara360 is a dedicated virtual account provider. Use POST /api/gateway/virtual-accounts instead.', 422);
+        }
         if ($requestedProvider === 'flutterwave' && !$enableFlutterwave) {
             return $this->error('Flutterwave is currently disabled', 422);
         }
@@ -681,15 +684,15 @@ class PaymentsController extends Controller
 
                     // Update merchant wallet
                     $merchant = $tx->merchant;
-                    $merchant->wallet_balance += $tx->amount;
+                    $merchant->wallet_balance += $amountNgn;
                     if ($tx->charge_mode === 'merchant') {
-                        $merchant->wallet_balance -= $chargeKobo;
+                        $merchant->wallet_balance -= $chargeNgn;
                     }
                     $merchant->save();
 
                     // Create transactions
                     $merchant->transactions()->create([
-                        'amount' => $tx->amount,
+                        'amount' => $amountNgn,
                         'type' => UserTransaction::TYPE_CREDIT,
                         'status' => UserTransaction::STATUS_SUCCESSFUL,
                         'source' => UserTransaction::SOURCE_BANK_TRANSFER,
@@ -697,15 +700,15 @@ class PaymentsController extends Controller
                         'reference' => $tx->reference,
                     ]);
 
-                    if ($chargeKobo > 0 && $tx->charge_mode === 'merchant') {
+                    if ($chargeNgn > 0 && $tx->charge_mode === 'merchant') {
                         $merchant->transactions()->create([
-                            'amount' => $chargeKobo,
+                            'amount' => $chargeNgn,
                             'type' => UserTransaction::TYPE_DEBIT,
                             'status' => UserTransaction::STATUS_SUCCESSFUL,
                             'source' => UserTransaction::SOURCE_BANK_TRANSFER,
                             'message' => 'Gateway payment charge: ₦' . number_format($chargeNgn, 2),
                             'reference' => $tx->reference,
-                            'fee' => $chargeKobo,
+                            'fee' => $chargeNgn,
                         ]);
                     }
 
@@ -742,15 +745,15 @@ class PaymentsController extends Controller
 
                     // Update merchant wallet
                     $merchant = $tx->merchant;
-                    $merchant->wallet_balance += $tx->amount;
+                    $merchant->wallet_balance += $amountNgn;
                     if ($tx->charge_mode === 'merchant') {
-                        $merchant->wallet_balance -= $chargeKobo;
+                        $merchant->wallet_balance -= $chargeNgn;
                     }
                     $merchant->save();
 
                     // Create transactions
                     $merchant->transactions()->create([
-                        'amount' => $tx->amount,
+                        'amount' => $amountNgn,
                         'type' => UserTransaction::TYPE_CREDIT,
                         'status' => UserTransaction::STATUS_SUCCESSFUL,
                         'source' => UserTransaction::SOURCE_BANK_TRANSFER,
@@ -758,15 +761,15 @@ class PaymentsController extends Controller
                         'reference' => $tx->reference,
                     ]);
 
-                    if ($chargeKobo > 0 && $tx->charge_mode === 'merchant') {
+                    if ($chargeNgn > 0 && $tx->charge_mode === 'merchant') {
                         $merchant->transactions()->create([
-                            'amount' => $chargeKobo,
+                            'amount' => $chargeNgn,
                             'type' => UserTransaction::TYPE_DEBIT,
                             'status' => UserTransaction::STATUS_SUCCESSFUL,
                             'source' => UserTransaction::SOURCE_BANK_TRANSFER,
                             'message' => 'Gateway payment charge: ₦' . number_format($chargeNgn, 2),
                             'reference' => $tx->reference,
-                            'fee' => $chargeKobo,
+                            'fee' => $chargeNgn,
                         ]);
                     }
 
@@ -863,15 +866,15 @@ class PaymentsController extends Controller
 
         // Update merchant's wallet
         $merchant = $tx->merchant;
-        $merchant->wallet_balance += $tx->amount;
+        $merchant->wallet_balance += $amountNgn;
         if ($tx->charge_mode === 'merchant') {
-            $merchant->wallet_balance -= $chargeKobo;
+            $merchant->wallet_balance -= $chargeNgn;
         }
         $merchant->save();
 
         // Create credit transaction for merchant
         $merchant->transactions()->create([
-            'amount' => $tx->amount,
+            'amount' => $amountNgn,
             'type' => UserTransaction::TYPE_CREDIT,
             'status' => UserTransaction::STATUS_SUCCESSFUL,
             'source' => UserTransaction::SOURCE_BANK_TRANSFER,
@@ -880,15 +883,15 @@ class PaymentsController extends Controller
         ]);
 
         // Create debit transaction for charge if charge > 0 and merchant pays
-        if ($chargeKobo > 0 && $tx->charge_mode === 'merchant') {
+        if ($chargeNgn > 0 && $tx->charge_mode === 'merchant') {
             $merchant->transactions()->create([
-                'amount' => $chargeKobo,
+                'amount' => $chargeNgn,
                 'type' => UserTransaction::TYPE_DEBIT,
                 'status' => UserTransaction::STATUS_SUCCESSFUL,
                 'source' => UserTransaction::SOURCE_BANK_TRANSFER,
                 'message' => 'Gateway payment charge: ₦' . number_format($chargeNgn, 2),
                 'reference' => $tx->reference,
-                'fee' => $chargeKobo,
+                'fee' => $chargeNgn,
             ]);
         }
 
@@ -939,7 +942,7 @@ class PaymentsController extends Controller
                         'title' => config('app.name') . ' Payment',
                         'description' => 'Card Payment for ' . $tx->reference,
                         'callBackUrl' => $tx->return_url ?: config('app.url'),
-                        'productType' => 'online_payment',
+                        'productType' => 'bank_card',
                         'userId' => $tx->customer_email,
                     ];
 
@@ -949,7 +952,12 @@ class PaymentsController extends Controller
 
                     $orderRes = $palmPay->createOrder($orderPayload);
                     $orderData = $orderRes['data'] ?? [];
-                    $checkoutUrl = $orderData['checkoutUrl'] ?? null;
+                    $checkoutUrl = $orderData['checkoutUrl'] 
+                        ?? $orderData['h5Url'] 
+                        ?? $orderData['webUrl'] 
+                        ?? $orderData['paymentUrl'] 
+                        ?? $orderData['redirectUrl'] 
+                        ?? null;
 
                     if (empty($checkoutUrl)) {
                         return $this->error('PalmPay did not return a checkout URL', 400);
@@ -975,6 +983,12 @@ class PaymentsController extends Controller
                     return $this->error('PalmPay Card Payment error: ' . $th->getMessage(), 400);
                 }
             }
+
+            $enableFlutterwave = SettingHelper::isFlutterwaveEnabled();
+            if (!$enableFlutterwave) {
+                return $this->error('Flutterwave card charge is currently disabled by administrator', 422);
+            }
+
             $flwBaseUrl = rtrim((string) env('FLW_API_URL', ''), '/');
             $flwSecret = (string) env('FLW_LIVE_SECRET_KEY', '');
             if ($flwSecret === '') {
@@ -1088,6 +1102,11 @@ class PaymentsController extends Controller
         }
 
         try {
+            $enableFlutterwave = SettingHelper::isFlutterwaveEnabled();
+            if (!$enableFlutterwave) {
+                return $this->error('Flutterwave card validation is currently disabled by administrator', 422);
+            }
+
             $flwBaseUrl = rtrim((string) env('FLW_API_URL', ''), '/');
             $flwSecret = (string) env('FLW_LIVE_SECRET_KEY', '');
             if ($flwSecret === '') {
@@ -1176,14 +1195,14 @@ class PaymentsController extends Controller
             $chargeNgn = $chargeKobo / 100;
 
             $merchant = $tx->merchant;
-            $merchant->wallet_balance += $tx->amount;
+            $merchant->wallet_balance += $amountNgn;
             if ($tx->charge_mode === 'merchant') {
-                $merchant->wallet_balance -= $chargeKobo;
+                $merchant->wallet_balance -= $chargeNgn;
             }
             $merchant->save();
 
             $merchant->transactions()->create([
-                'amount' => $tx->amount,
+                'amount' => $amountNgn,
                 'type' => UserTransaction::TYPE_CREDIT,
                 'status' => UserTransaction::STATUS_SUCCESSFUL,
                 'source' => UserTransaction::SOURCE_BANK_TRANSFER,
@@ -1191,15 +1210,15 @@ class PaymentsController extends Controller
                 'reference' => $tx->reference,
             ]);
 
-            if ($chargeKobo > 0 && $tx->charge_mode === 'merchant') {
+            if ($chargeNgn > 0 && $tx->charge_mode === 'merchant') {
                 $merchant->transactions()->create([
-                    'amount' => $chargeKobo,
+                    'amount' => $chargeNgn,
                     'type' => UserTransaction::TYPE_DEBIT,
                     'status' => UserTransaction::STATUS_SUCCESSFUL,
                     'source' => UserTransaction::SOURCE_BANK_TRANSFER,
                     'message' => 'Gateway payment charge: ₦' . number_format($chargeNgn, 2),
                     'reference' => $tx->reference,
-                    'fee' => $chargeKobo,
+                    'fee' => $chargeNgn,
                 ]);
             }
 

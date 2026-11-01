@@ -19,26 +19,79 @@ class VirtualAccounts extends Component
     public function mount()
     {
         $this->bvn = auth()->user()->bvn;
+
+        $palmpayEnabled = \App\Helpers\SettingHelper::isPalmPayEnabled();
+        $udaraEnabled = \App\Helpers\SettingHelper::isUdara360Enabled();
+        $flwEnabled = \App\Helpers\SettingHelper::isFlutterwaveEnabled();
+
+        $default = strtolower((string) \App\Helpers\SettingHelper::get(\App\Helpers\SettingHelper::DEFAULT_VIRTUAL_ACCOUNT_PROVIDER, 'palmpay'));
+
+        if ($default === 'udara360' && $udaraEnabled) {
+            $this->provider = 'udara360';
+        } elseif ($default === 'palmpay' && $palmpayEnabled) {
+            $this->provider = 'palmpay';
+        } elseif ($default === 'flutterwave' && $flwEnabled) {
+            $this->provider = 'flutterwave';
+        } elseif ($palmpayEnabled) {
+            $this->provider = 'palmpay';
+        } elseif ($udaraEnabled) {
+            $this->provider = 'udara360';
+        } elseif ($flwEnabled) {
+            $this->provider = 'flutterwave';
+        } else {
+            $this->provider = '';
+        }
     }
 
     public function generate(UserService $userService)
     {
+        $palmpayEnabled = \App\Helpers\SettingHelper::isPalmPayEnabled();
+        $udaraEnabled = \App\Helpers\SettingHelper::isUdara360Enabled();
+        $flwEnabled = \App\Helpers\SettingHelper::isFlutterwaveEnabled();
+
+        $enabledProviders = [];
+        if ($palmpayEnabled) $enabledProviders[] = 'palmpay';
+        if ($udaraEnabled) $enabledProviders[] = 'udara360';
+        if ($flwEnabled) $enabledProviders[] = 'flutterwave';
+
+        if (empty($enabledProviders)) {
+            $this->alert('error', 'All virtual account providers are currently disabled by administrator.');
+            return;
+        }
+
         $this->validate([
             'bvn' => 'required|digits:11',
-            'provider' => 'required|in:palmpay,flutterwave',
+            'provider' => 'required|in:' . implode(',', $enabledProviders),
         ]);
+
+        if ($this->provider === 'palmpay' && !$palmpayEnabled) {
+            $this->alert('error', 'PalmPay virtual account generation is currently disabled by administrator');
+            return;
+        }
+        if ($this->provider === 'udara360' && !$udaraEnabled) {
+            $this->alert('error', 'Udara360 virtual account generation is currently disabled by administrator');
+            return;
+        }
+        if ($this->provider === 'flutterwave' && !$flwEnabled) {
+            $this->alert('error', 'Flutterwave virtual account generation is currently disabled by administrator');
+            return;
+        }
 
         $user = auth()->user();
 
+        $customerDetails = [
+            'name' => $user->first_name . ' ' . $user->last_name,
+            'email' => $user->email,
+            'phone' => $user->phone ?? $user->contact ?? '',
+            'merchant_ref' => 'merchant_va_' . $user->id,
+        ];
+
         if ($this->provider === 'palmpay') {
-            $res = $userService->generatePalmPayVirtualAccount($user, $this->bvn, [
-                'name' => $user->first_name . ' ' . $user->last_name,
-                'email' => $user->email,
-                'phone' => $user->phone ?? $user->contact ?? '',
-                'merchant_ref' => 'merchant_va_' . $user->id,
-            ]);
+            $res = $userService->generatePalmPayVirtualAccount($user, $this->bvn, $customerDetails);
+        } elseif ($this->provider === 'udara360') {
+            $res = $userService->generateUdara360VirtualAccount($user, $this->bvn, $customerDetails);
         } else {
-            $res = $userService->generateAccountNumber($user, $this->bvn);
+            $res = $userService->generateAccountNumber($user, $this->bvn, $customerDetails);
         }
 
         if (($res['status'] ?? null) !== 'success') {
@@ -48,11 +101,20 @@ class VirtualAccounts extends Component
 
         $data = $res['data'] ?? [];
         $accountNumber = $data['account_number'] ?? $data['accountNo'] ?? $data['accountnumber'] ?? $data['virtualAccountNo'] ?? null;
-        $bankName = $data['bank_name'] ?? $data['bankName'] ?? ($data['bank']['name'] ?? null) ?? ($this->provider === 'palmpay' ? 'PalmPay' : 'Wema Bank');
-        $bankCode = $data['bank_code'] ?? $data['bankCode'] ?? ($data['bank']['code'] ?? null);
-        if (!is_string($bankCode) || trim($bankCode) === '') {
-            $bankCode = '000000';
-        }
+        
+        $defaultBankName = match ($this->provider) {
+            'udara360' => (new \App\Services\Udara360Service())->getBankName(),
+            'flutterwave' => 'Wema Bank',
+            default => 'PalmPay',
+        };
+        $bankName = $data['bank_name'] ?? $data['bankName'] ?? ($data['bank']['name'] ?? null) ?? $defaultBankName;
+
+        $defaultBankCode = match ($this->provider) {
+            'udara360' => (new \App\Services\Udara360Service())->getBankCode(),
+            'flutterwave' => '035',
+            default => '000000',
+        };
+        $bankCode = $data['bank_code'] ?? $data['bankCode'] ?? ($data['bank']['code'] ?? null) ?? $defaultBankCode;
 
         if (!is_string($accountNumber) || $accountNumber === '' || !is_string($bankName) || $bankName === '') {
             $this->alert('error', 'Virtual account response is missing required fields');
@@ -94,13 +156,23 @@ class VirtualAccounts extends Component
     {
         $virtualAccount = auth()->user()->virtualAccount;
 
+        $palmpayEnabled = \App\Helpers\SettingHelper::isPalmPayEnabled();
+        $udaraEnabled = \App\Helpers\SettingHelper::isUdara360Enabled();
+        $flwEnabled = \App\Helpers\SettingHelper::isFlutterwaveEnabled();
+
         $allAccounts = VirtualAccount::where('user_id', auth()->id())
+            ->when(!$palmpayEnabled, fn($q) => $q->where('provider', '!=', 'palmpay'))
+            ->when(!$udaraEnabled, fn($q) => $q->where('provider', '!=', 'udara360'))
+            ->when(!$flwEnabled, fn($q) => $q->where('provider', '!=', 'flutterwave'))
             ->latest('id')
             ->paginate(15);
 
         return view('livewire.gateway.virtual-accounts', [
             'virtualAccount' => $virtualAccount,
             'allAccounts' => $allAccounts,
+            'palmpayEnabled' => $palmpayEnabled,
+            'udaraEnabled' => $udaraEnabled,
+            'flwEnabled' => $flwEnabled,
         ])->title('Virtual Accounts');
     }
 }

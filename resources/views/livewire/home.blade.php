@@ -27,28 +27,85 @@
         </div>--}}
     </div>
 
-    @php
-        $kybSubmitted = (bool) optional($kyb)->submitted_at;
-        $hasSettlement = (bool) (optional($kyb)->settlement_account_number && optional($kyb)->settlement_bank_id && optional($kyb)->settlement_account_name);
-    @endphp
+    @if (!$isActivated)
+        <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0b0075] via-[#1400FB] to-[#3a2cf5] p-6 lg:p-8 text-white shadow-xl border border-blue-400/20">
+            <!-- Background Glow Circles -->
+            <div class="absolute -right-16 -top-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -left-16 -bottom-16 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
 
-    @if (!$kybSubmitted || !$hasSettlement)
-        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div class="text-sm text-amber-900">
-                <div class="font-semibold">
-                    Complete your onboarding to unlock payouts and smooth operations.
+            <div class="relative z-10">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                    <div class="max-w-2xl">
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-white/15 text-blue-100 backdrop-blur-md border border-white/20 mb-3">
+                            <i class="fa fa-bolt text-amber-300"></i>
+                            <span>Business Activation • Step {{ $completedStepsCount }} of 5</span>
+                        </div>
+                        <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                            Activate your business
+                        </h2>
+                        <p class="text-blue-100 text-sm sm:text-base mt-2 leading-relaxed">
+                            Welcome inside PayZenter! You're only a few quick details away from unlocking live customer collections, generating instant virtual accounts, and withdrawing your funds directly.
+                        </p>
+                    </div>
+
+                    <div class="flex-shrink-0">
+                        @if ($kybSubmitted && !$hasPin)
+                            <a href="{{ route('onboarding') }}" class="inline-flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-white text-[#1400FB] font-bold text-base hover:bg-blue-50 shadow-lg hover:shadow-2xl transition-all duration-200 transform hover:-translate-y-0.5">
+                                <span>Set Transaction PIN</span>
+                                <i class="fa fa-lock text-sm"></i>
+                            </a>
+                        @elseif ($kybSubmitted)
+                            <div class="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 text-white font-semibold text-sm">
+                                <i class="fa fa-clock text-amber-300"></i>
+                                <span>Verification in Review</span>
+                            </div>
+                        @else
+                            <a href="{{ route('onboarding') }}" class="inline-flex items-center justify-center gap-3 px-7 py-4 rounded-2xl bg-white text-[#1400FB] font-extrabold text-base hover:bg-blue-50 shadow-lg hover:shadow-2xl transition-all duration-200 transform hover:-translate-y-0.5">
+                                <span>Activate Your Business</span>
+                                <i class="fa fa-arrow-right text-sm"></i>
+                            </a>
+                        @endif
+                    </div>
                 </div>
-                <div class="mt-1 text-amber-800">
-                    @if (!$kybSubmitted)
-                        KYB not submitted.
-                    @else
-                        Settlement account not completed.
-                    @endif
+
+                <!-- Progress Bar Section -->
+                <div class="mt-6 pt-5 border-t border-white/15">
+                    <div class="flex items-center justify-between text-xs sm:text-sm font-semibold mb-2">
+                        <span class="text-blue-200 uppercase tracking-wider text-[11px]">Activation Progress</span>
+                        <span class="text-white font-bold">{{ $activationProgress }}% Complete</span>
+                    </div>
+                    <div class="w-full bg-black/25 rounded-full h-3 p-0.5 overflow-hidden">
+                        <div 
+                            class="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300 h-2 rounded-full transition-all duration-700 ease-out shadow-sm"
+                            style="width: {{ $activationProgress }}%"
+                        ></div>
+                    </div>
+
+                    <!-- Step badges checklist -->
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 mt-4 text-xs font-medium">
+                        <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 text-white">
+                            <i class="fa fa-check-circle text-emerald-400"></i>
+                            <span class="truncate">Account Created</span>
+                        </div>
+                        <div class="flex items-center gap-2 px-3 py-2 rounded-xl {{ $hasPersonalInfo ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-blue-200/70' }} backdrop-blur-sm border">
+                            <i class="fa {{ $hasPersonalInfo ? 'fa-check-circle text-emerald-400' : 'fa-circle-dot text-blue-300/60' }}"></i>
+                            <span class="truncate">Personal Info</span>
+                        </div>
+                        <div class="flex items-center gap-2 px-3 py-2 rounded-xl {{ $hasBusinessInfo ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-blue-200/70' }} backdrop-blur-sm border">
+                            <i class="fa {{ $hasBusinessInfo ? 'fa-check-circle text-emerald-400' : 'fa-circle-dot text-blue-300/60' }}"></i>
+                            <span class="truncate">Business Profile</span>
+                        </div>
+                        <div class="flex items-center gap-2 px-3 py-2 rounded-xl {{ $hasSettlement ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-blue-200/70' }} backdrop-blur-sm border">
+                            <i class="fa {{ $hasSettlement ? 'fa-check-circle text-emerald-400' : 'fa-circle-dot text-blue-300/60' }}"></i>
+                            <span class="truncate">Settlement Bank</span>
+                        </div>
+                        <div class="flex items-center gap-2 px-3 py-2 rounded-xl {{ ($kybSubmitted && $hasPin) ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-blue-200/70' }} backdrop-blur-sm border">
+                            <i class="fa {{ ($kybSubmitted && $hasPin) ? 'fa-check-circle text-emerald-400' : 'fa-circle-dot text-blue-300/60' }}"></i>
+                            <span class="truncate">Docs & PIN</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <a href="{{ route('onboarding') }}" class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700">
-                Continue Onboarding <span class="fa fa-arrow-right ml-2"></span>
-            </a>
         </div>
     @endif
 
@@ -177,6 +234,77 @@
                         Manage Virtual Account <span class="fa fa-arrow-right ml-2"></span>
                     </a>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- THREE KEY GATEWAY METRICS WITH BOX SHADOW (USER / MERCHANT SIDE) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- 1. Transaction Count (Today) -->
+        <div class="bg-white rounded-2xl p-6 border border-slate-200/80 transition duration-200 hover:translate-y-[-2px]" style="box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
+                    Today's Activity
+                </span>
+                <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">
+                    <span class="fa fa-receipt"></span>
+                </div>
+            </div>
+            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Transaction Count</div>
+            <div class="mt-2 flex items-baseline gap-2">
+                <span class="text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight">
+                    {{ number_format($todayTransactionsCount) }}
+                </span>
+                <span class="text-xs font-semibold text-gray-500">today</span>
+            </div>
+            <div class="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-600 flex items-center justify-between">
+                <span>Received today so far</span>
+                <span class="font-bold text-emerald-600">{{ number_format($todaySuccessfulCount) }} successful</span>
+            </div>
+        </div>
+
+        <!-- 2. Today's Payments (Amount Received) -->
+        <div class="bg-white rounded-2xl p-6 border border-slate-200/80 transition duration-200 hover:translate-y-[-2px]" style="box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+                    Live Today
+                </span>
+                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">
+                    <span class="fa fa-money-bill-wave"></span>
+                </div>
+            </div>
+            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Today's Payments</div>
+            <div class="mt-2 flex items-baseline gap-1">
+                <span class="text-3xl lg:text-4xl font-extrabold text-emerald-600 tracking-tight">
+                    ₦{{ number_format($todayPaymentsAmount, 2) }}
+                </span>
+            </div>
+            <div class="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-600 flex items-center justify-between">
+                <span>Exact amount received today on website</span>
+                <span class="text-gray-400 font-mono text-[11px]">{{ now()->format('d M') }}</span>
+            </div>
+        </div>
+
+        <!-- 3. Virtual Accounts (Generated / Volume) -->
+        <div class="bg-white rounded-2xl p-6 border border-slate-200/80 transition duration-200 hover:translate-y-[-2px]" style="box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+                    Virtual Accounts
+                </span>
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
+                    <span class="fa fa-building-columns"></span>
+                </div>
+            </div>
+            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Virtual Accounts Generated</div>
+            <div class="mt-2 flex items-baseline gap-2">
+                <span class="text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight">
+                    {{ number_format($totalVirtualAccounts) }}
+                </span>
+                <span class="text-xs font-semibold text-gray-500">accounts</span>
+            </div>
+            <div class="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-600 flex items-center justify-between">
+                <span>Used to collect via PayZenter</span>
+                <span class="font-bold text-gray-900">₦{{ number_format($virtualAccountsVolume, 2) }}</span>
             </div>
         </div>
     </div>

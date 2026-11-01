@@ -14,7 +14,9 @@ class AdminMobileMenu extends Component
 
     public function mount()
     {
-        $this->pendingKycCount = User::whereHas('kyc')->where('kyc_status', Kyc::STATUS_PENDING)->count();
+        $this->pendingKycCount = User::where(function ($q) {
+            $q->whereHas('kyc')->orWhereHas('merchantKyb');
+        })->where('kyc_status', Kyc::STATUS_PENDING)->count();
         $this->openErrorsCount = ErrorLog::where('status', ErrorLog::STATUS_OPEN)->count();
     }
 

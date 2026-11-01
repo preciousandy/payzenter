@@ -65,7 +65,7 @@
                 <div class="mt-8">
                     <h3 class="text-lg font-bold text-gray-900 mb-4">Choose payment method</h3>
                     <div class="grid grid-cols-1 gap-4">
-                        @if($enable_flutterwave || $enable_palmpay)
+                        @if ($enable_paystack_card || $enable_flutterwave)
                         <button wire:click="selectMethod('card')" class="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-primary hover:bg-indigo-50 transition-all group">
                             <div class="flex items-center gap-4">
                                 <div class="w-12 h-12 bg-indigo-100 text-primary rounded-lg flex items-center justify-center">
@@ -80,6 +80,7 @@
                         </button>
                         @endif
 
+                        {{-- 
                         @if($enable_flutterwave || $enable_palmpay)
                         <button wire:click="selectMethod('ussd')" class="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-primary hover:bg-indigo-50 transition-all group">
                             <div class="flex items-center gap-4">
@@ -94,6 +95,7 @@
                             <i class="fa fa-chevron-right text-gray-300 group-hover:text-primary"></i>
                         </button>
                         @endif
+                        --}}
 
                         <button wire:click="selectMethod('transfer')" class="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-primary hover:bg-indigo-50 transition-all group">
                             <div class="flex items-center gap-4">
@@ -114,79 +116,135 @@
                 </div>
 
             @elseif($step === 'card_form')
-                <div class="mt-8">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-bold text-gray-900">Card Payment</h3>
-                        <button wire:click="goBackToMethod" class="text-sm text-gray-400 hover:text-primary transition-colors">
-                            <i class="fa fa-arrow-left mr-1"></i> Back
+                <div class="mt-4">
+                    <div class="flex items-center justify-between border-b border-gray-100 pb-4 mb-4">
+                        <button type="button" wire:click="goBackToMethod" class="flex items-center gap-2 text-gray-900 hover:text-primary font-bold text-base transition-colors">
+                            <i class="fa fa-arrow-left text-sm"></i>
+                            <span>Pay with Bank Card</span>
                         </button>
                     </div>
 
                     @if($cardError)
-                        <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-                            <i class="fa fa-exclamation-circle mr-2"></i>{{ $cardError }}
+                        <div class="mb-4 p-3.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm flex items-center gap-2">
+                            <i class="fa fa-exclamation-circle text-red-500 shrink-0"></i>
+                            <span>{{ $cardError }}</span>
                         </div>
                     @endif
 
-                    <form wire:submit.prevent="submitCard" class="space-y-4">
-                        <div>
-                            <x-input-label value="Card Number" />
-                            <div class="relative mt-1">
-                                <x-text-input wire:model.defer="card_number" type="text" inputmode="numeric" maxlength="19" class="w-full h-12 pl-12 pr-4" placeholder="0000 0000 0000 0000" required />
-                                <i class="fa fa-credit-card absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                            </div>
-                            <x-input-error :messages="$errors->get('card_number')" class="mt-2" />
+                    <div class="text-center my-5 bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
+                        <div class="text-xs text-gray-400 font-bold uppercase tracking-wider">
+                            {{ $tx->merchant?->company_name ?: ($tx->merchant?->name ?: 'PGT') }} - Order
+                        </div>
+                        <div class="text-3xl font-black text-gray-900 mt-1 tracking-tight">
+                            ₦{{ formatNumber(($tx->charged_amount ?? $tx->amount) / 100) }}
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <div class="text-center font-bold text-gray-800 mb-5 text-sm">
+                            Enter your card details to pay
                         </div>
 
-                        <div>
-                            <x-input-label value="Cardholder Name" />
-                            <x-text-input wire:model.defer="card_name" type="text" class="w-full mt-1 h-12" placeholder="e.g. John Doe" />
-                            <x-input-error :messages="$errors->get('card_name')" class="mt-2" />
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
+                        <form wire:submit.prevent="submitCard" class="space-y-4">
                             <div>
-                                <x-input-label value="Expiry Date" />
-                                <div class="grid grid-cols-2 gap-2 mt-1">
-                                    <x-text-input wire:model.defer="card_expiry_month" type="text" inputmode="numeric" maxlength="2" class="h-12 text-center" placeholder="MM" required />
-                                    <x-text-input wire:model.defer="card_expiry_year" type="text" inputmode="numeric" maxlength="2" class="h-12 text-center" placeholder="YY" required />
+                                <label class="block text-xs font-bold text-gray-700 mb-1">Card Number</label>
+                                <div class="relative">
+                                    <input wire:model="card_number" type="text" inputmode="numeric" maxlength="19" class="w-full h-12 pl-4 pr-10 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 text-gray-900 placeholder-gray-300 font-medium transition-all" placeholder="0000 0000 0000 0000" required />
+                                    <i class="fa fa-credit-card absolute right-4 top-1/2 -translate-y-1/2 text-gray-300"></i>
                                 </div>
-                                <x-input-error :messages="$errors->get('card_expiry_month')" class="mt-2" />
-                                <x-input-error :messages="$errors->get('card_expiry_year')" class="mt-1" />
+                                <x-input-error :messages="$errors->get('card_number')" class="mt-1" />
                             </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1">
+                                        Card Expiry <i class="fa fa-info-circle text-gray-300 text-[10px]" title="Month and Year"></i>
+                                    </label>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <input wire:model="card_expiry_month" type="text" inputmode="numeric" maxlength="2" class="h-12 text-center border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 text-gray-900 placeholder-gray-300 font-medium transition-all" placeholder="MM" required />
+                                        <input wire:model="card_expiry_year" type="text" inputmode="numeric" maxlength="2" class="h-12 text-center border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 text-gray-900 placeholder-gray-300 font-medium transition-all" placeholder="YY" required />
+                                    </div>
+                                    <x-input-error :messages="$errors->get('card_expiry_month')" class="mt-1" />
+                                    <x-input-error :messages="$errors->get('card_expiry_year')" class="mt-1" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1">
+                                        CVV <i class="fa fa-info-circle text-gray-300 text-[10px]" title="3 digits on back of card"></i>
+                                    </label>
+                                    <div class="relative">
+                                        <input wire:model="card_cvv" type="password" inputmode="numeric" maxlength="4" class="w-full h-12 text-center border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 text-gray-900 placeholder-gray-300 font-medium tracking-widest transition-all" placeholder="123" required />
+                                    </div>
+                                    <x-input-error :messages="$errors->get('card_cvv')" class="mt-1" />
+                                </div>
+                            </div>
+
                             <div>
-                                <x-input-label value="CVV" />
-                                <div class="relative mt-1">
-                                    <x-text-input wire:model.defer="card_cvv" type="password" inputmode="numeric" maxlength="4" class="w-full h-12 pr-12 text-center tracking-widest" placeholder="•••" required />
-                                    <i class="fa fa-lock absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                                <label class="block text-xs font-bold text-gray-700 mb-1 flex items-center justify-between">
+                                    <span>Card PIN</span>
+                                    <span class="text-[10px] text-gray-400 font-normal">(Required for Mastercard &amp; Verve)</span>
+                                </label>
+                                <div class="relative">
+                                    <input wire:model="card_pin" type="password" inputmode="numeric" maxlength="4" class="w-full h-12 text-center border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 text-gray-900 placeholder-gray-300 font-medium tracking-widest transition-all" placeholder="••••" />
                                 </div>
-                                <x-input-error :messages="$errors->get('card_cvv')" class="mt-2" />
+                                <x-input-error :messages="$errors->get('card_pin')" class="mt-1" />
                             </div>
-                        </div>
 
-                        <div>
-                            <x-input-label value="Card PIN (Optional, required for some cards)" />
-                            <div class="relative mt-1">
-                                <x-text-input wire:model.defer="card_pin" type="password" inputmode="numeric" maxlength="4" class="w-full h-12 tracking-widest text-center" placeholder="••••" />
-                                <i class="fa fa-shield-alt absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-                            </div>
-                            <x-input-error :messages="$errors->get('card_pin')" class="mt-2" />
-                        </div>
+                            <button type="submit" class="w-full bg-primary hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center text-lg cursor-pointer mt-4" style="background-color: #4f46e5; color: #ffffff;" :disabled="$processing">
+                                <span wire:loading.remove wire:target="submitCard">
+                                    Pay ₦{{ formatNumber(($tx->charged_amount ?? $tx->amount) / 100) }}
+                                </span>
+                                <span wire:loading wire:target="submitCard" class="flex items-center justify-center gap-2">
+                                    <i class="fa fa-spinner fa-spin"></i> Processing...
+                                </span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
 
-                        <div class="flex items-center justify-center gap-2 text-xs text-gray-400 pt-2">
-                            <i class="fa fa-lock text-green-500"></i>
-                            <span>Your card details are secured with 256-bit SSL encryption</span>
-                        </div>
+            @elseif($step === 'palmpay_wait')
+                <div class="mt-8 text-center py-6" wire:poll.3s="checkPalmPayStatus">
+                    <div class="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                        <i class="fa fa-credit-card text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-2">Processing Payment</h3>
+                    <p class="text-sm text-gray-600 mb-6 px-4">
+                        Your card payment request of <span class="font-bold text-gray-900">₦{{ formatNumber(($tx->charged_amount ?? $tx->amount) / 100) }}</span> has been submitted to PalmPay.
+                    </p>
 
-                        <x-primary-button class="w-full rounded-xl py-4 text-lg font-bold" :disabled="$processing">
-                            <span wire:loading.remove wire:target="submitCard">
-                                Pay ₦{{ formatNumber(($tx->charged_amount ?? $tx->amount) / 100) }}
-                            </span>
-                            <span wire:loading wire:target="submitCard" class="flex items-center justify-center gap-2">
-                                <i class="fa fa-spinner fa-spin"></i> Processing...
-                            </span>
-                        </x-primary-button>
-                    </form>
+                    @if($verificationMessage)
+                        <div class="p-4 mb-6 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-sm font-medium text-left flex items-start gap-3 shadow-sm">
+                            <i class="fa fa-info-circle text-amber-600 text-lg mt-0.5 shrink-0"></i>
+                            <span>{{ $verificationMessage }}</span>
+                        </div>
+                    @endif
+
+                    <div class="bg-gray-50 p-5 rounded-2xl border border-gray-200 mb-6 text-left space-y-2 text-xs text-gray-600">
+                        <div class="flex justify-between">
+                            <span class="font-bold">Order ID:</span>
+                            <span class="font-mono text-gray-900">{{ $tx->palmpay_order_id ?: $tx->reference }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-bold">Provider:</span>
+                            <span class="font-bold text-purple-700">PalmPay</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-bold">Status:</span>
+                            <span class="font-bold text-amber-600 uppercase">Awaiting Confirmation</span>
+                        </div>
+                    </div>
+
+                    <button wire:click="checkPalmPayStatus" wire:loading.attr="disabled" class="w-full bg-primary hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 text-base cursor-pointer mb-4" style="background-color: #4f46e5; color: #ffffff;">
+                        <span wire:loading.remove wire:target="checkPalmPayStatus" class="flex items-center gap-2">
+                            <i class="fa fa-refresh"></i> Check Payment Status
+                        </span>
+                        <span wire:loading wire:target="checkPalmPayStatus" class="flex items-center justify-center gap-2">
+                            <i class="fa fa-spinner fa-spin"></i> Verifying...
+                        </span>
+                    </button>
+
+                    <button type="button" wire:click="goBackToMethod" class="text-sm text-gray-400 hover:text-primary transition-colors">
+                        <i class="fa fa-arrow-left mr-1"></i> Back to payment methods
+                    </button>
                 </div>
 
             @elseif($step === 'otp_form')

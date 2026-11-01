@@ -17,19 +17,36 @@ class Preferences extends Component
     public function mount()
     {
         $user = Auth::user();
-        $this->preferred_provider = $user->preferred_gateway_provider;
+        $enableFlutterwave = SettingHelper::isFlutterwaveEnabled();
+        $enablePalmPay = SettingHelper::isPalmPayEnabled();
+
+        $pref = $user->preferred_gateway_provider;
+        if ($pref === 'flutterwave' && !$enableFlutterwave) {
+            $pref = null;
+        }
+        if ($pref === 'palmpay' && !$enablePalmPay) {
+            $pref = null;
+        }
+
+        $this->preferred_provider = $pref;
         $this->gateway_charge_mode = $user->gateway_charge_mode ?? 'merchant';
     }
 
     public function savePreferences()
     {
+        $enableFlutterwave = SettingHelper::isFlutterwaveEnabled();
+        $enablePalmPay = SettingHelper::isPalmPayEnabled();
+
+        $allowed = [];
+        if ($enableFlutterwave) $allowed[] = 'flutterwave';
+        if ($enablePalmPay) $allowed[] = 'palmpay';
+
+        $rule = !empty($allowed) ? 'nullable|in:' . implode(',', $allowed) : 'nullable';
+
         $validated = $this->validate([
-            'preferred_provider' => 'nullable|in:flutterwave,palmpay',
+            'preferred_provider' => $rule,
             'gateway_charge_mode' => 'required|in:merchant,customer',
         ]);
-
-        $enableFlutterwave = (bool) SettingHelper::get(SettingHelper::ENABLE_FLUTTERWAVE, '1');
-        $enablePalmPay = (bool) SettingHelper::get(SettingHelper::ENABLE_PALMPAY, '1');
 
         $provider = $validated['preferred_provider'] ?? null;
         if ($provider === '') {
@@ -59,8 +76,8 @@ class Preferences extends Component
 
     public function render()
     {
-        $enableFlutterwave = (bool) SettingHelper::get(SettingHelper::ENABLE_FLUTTERWAVE, '1');
-        $enablePalmPay = (bool) SettingHelper::get(SettingHelper::ENABLE_PALMPAY, '1');
+        $enableFlutterwave = SettingHelper::isFlutterwaveEnabled();
+        $enablePalmPay = SettingHelper::isPalmPayEnabled();
 
         return view('livewire.gateway.preferences', [
             'enableFlutterwave' => $enableFlutterwave,

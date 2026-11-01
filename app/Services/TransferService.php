@@ -67,24 +67,32 @@ class TransferService
   {
     try {
       $bankCode = self::mapToFlutterwaveBankCode((string) $bank_code);
-      $res = Http::withHeaders([
-        'Content-Type' => 'application/json',
-        'Authorization' => 'Bearer ' . env("FLW_LIVE_SECRET_KEY")
-      ])->post(env("FLW_API_URL") . "/accounts/resolve", [
-        "account_number" => $bank_account_number,
-        "account_bank" => $bankCode
-      ]);
+      $tokens = array_values(array_filter([env("FLW_LIVE_SECRET_KEY"), env("FLW_SECRET_KEY")]));
+      $apiUrl = rtrim((string) env("FLW_API_URL", "https://api.flutterwave.com/v3"), '/');
 
-      $data = $res->json();
+      $lastError = null;
+      foreach ($tokens as $token) {
+        $res = Http::withHeaders([
+          'Content-Type' => 'application/json',
+          'Authorization' => 'Bearer ' . $token
+        ])->timeout(8)->post($apiUrl . "/accounts/resolve", [
+          "account_number" => (string) $bank_account_number,
+          "account_bank" => (string) $bankCode
+        ]);
 
-      if ($res->successful() && $data['status'] == "success") {
-        return  [
-          'status' => 'success',
-          'data' => $data['data']
-        ];
-      } else {
-        throw new \Exception($data['message']);
+        $data = $res->json();
+
+        if ($res->successful() && ($data['status'] ?? '') === "success") {
+          return [
+            'status' => 'success',
+            'data' => $data['data']
+          ];
+        }
+
+        $lastError = $data['message'] ?? 'Unable to resolve account';
       }
+
+      throw new \Exception($lastError ?? 'Unable to confirm account details');
     } catch (\Throwable $th) {
       ErrorLog::logError(
         ErrorLog::SOURCE_DOT_API,
@@ -100,11 +108,10 @@ class TransferService
   public function getDotAccount($bank_code, $bank_account_number)
   {
     $accessToken = getDotAccessToken();
-    if (!$accessToken) {
-      return [
-        'status' => 'error',
-        'message' => 'Unable to verify account at the moment. Please try again later.'
-      ];
+    $baseUrl = rtrim((string) env("DOT_MFB_API_URL", ''), '/');
+
+    if ($baseUrl === '' || !$accessToken) {
+      return $this->confirmCustomer($bank_code, $bank_account_number);
     }
 
     try {
@@ -298,10 +305,13 @@ class TransferService
 
   public function checkFlutterwaveTransferStatus(?string $transferId = null, ?string $reference = null): array
   {
-    $baseUrl = rtrim((string) env('FLW_API_URL', ''), '/');
-    $secret = (string) env('FLW_LIVE_SECRET_KEY', '');
+    $baseUrl = rtrim((string) env('FLW_API_URL', 'https://api.flutterwave.com/v3'), '/');
+    if ($baseUrl === '') {
+      $baseUrl = 'https://api.flutterwave.com/v3';
+    }
+    $secret = (string) (env('FLW_LIVE_SECRET_KEY') ?: env('FLW_SECRET_KEY', ''));
 
-    if ($baseUrl === '' || $secret === '') {
+    if ($secret === '') {
       return [
         'status' => 'error',
         'message' => 'Flutterwave is not configured. Please add your Flutterwave keys.'

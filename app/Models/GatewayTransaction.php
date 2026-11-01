@@ -22,5 +22,15 @@ class GatewayTransaction extends Model
     {
         return $this->belongsTo(User::class, 'merchant_id');
     }
+
+    public function webhookDeliveries()
+    {
+        return $this->hasMany(GatewayWebhookDelivery::class, 'gateway_transaction_id');
+    }
+
+    public function latestWebhookDelivery()
+    {
+        return $this->hasOne(GatewayWebhookDelivery::class, 'gateway_transaction_id')->latestOfMany();
+    }
 }
 

@@ -17,36 +17,36 @@
                 <x-input-label value="Preferred Provider" />
                 <select wire:model.defer="preferred_provider" class="w-full mt-1 rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
                     <option value="">Automatic (System Default)</option>
-                    <option value="flutterwave" @disabled(!$enableFlutterwave)>Flutterwave</option>
-                    <option value="palmpay" @disabled(!$enablePalmPay)>PalmPay</option>
+                    @if($enableFlutterwave)
+                        <option value="flutterwave">Flutterwave</option>
+                    @endif
+                    @if($enablePalmPay)
+                        <option value="palmpay">PalmPay</option>
+                    @endif
                 </select>
                 <x-input-error :messages="$errors->get('preferred_provider')" class="mt-2" />
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                @if($enableFlutterwave)
                 <div class="p-4 rounded-2xl border border-gray-200">
                     <div class="flex items-center justify-between">
                         <div class="font-semibold text-gray-900">Flutterwave</div>
-                        @if($enableFlutterwave)
-                            <span class="text-xs font-semibold bg-green-100 text-green-700 px-3 py-1 rounded-full">Enabled</span>
-                        @else
-                            <span class="text-xs font-semibold bg-red-100 text-red-700 px-3 py-1 rounded-full">Disabled</span>
-                        @endif
+                        <span class="text-xs font-semibold bg-green-100 text-green-700 px-3 py-1 rounded-full">Enabled</span>
                     </div>
                     <div class="text-sm text-gray-500 mt-2">Card, USSD, and bank transfer via Flutterwave.</div>
                 </div>
+                @endif
 
+                @if($enablePalmPay)
                 <div class="p-4 rounded-2xl border border-gray-200">
                     <div class="flex items-center justify-between">
                         <div class="font-semibold text-gray-900">PalmPay</div>
-                        @if($enablePalmPay)
-                            <span class="text-xs font-semibold bg-green-100 text-green-700 px-3 py-1 rounded-full">Enabled</span>
-                        @else
-                            <span class="text-xs font-semibold bg-red-100 text-red-700 px-3 py-1 rounded-full">Disabled</span>
-                        @endif
+                        <span class="text-xs font-semibold bg-green-100 text-green-700 px-3 py-1 rounded-full">Enabled</span>
                     </div>
                     <div class="text-sm text-gray-500 mt-2">Checkout via PalmPay.</div>
                 </div>
+                @endif
             </div>
         </div>
     </div>

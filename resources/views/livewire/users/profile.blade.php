@@ -2,7 +2,6 @@
     <div class=" px-4 py-6  max-w-4xl min-h-screen" x-data="{showUploadModal: false, showDeleteModal: false}">
         <x-loading-spinner wire:target='deleteAccount, photo' />
 
-
         <div class="overflow-hidden shadow-sm rounded-xl p-6 flex flex-col gap-10 ">
             <div class=" flex flex-col items-center gap-3 lg:gap-5 md:flex-row md:items-center">
                 <div class="  w-fit rounded-full relative">
@@ -14,12 +13,6 @@
                 </div>
                 <div class=" ">
                     <h1 class="text-xl md:text-2xl lg:text-4xl font-bold">{{$user->name}}</h1>
-                    <a href="{{route('account-levels')}}" class=" flex items-center justify-center gap-2 mt-1 lg:justify-start lg:mt-2">
-                        <img src="{{asset('badges/' . $user->level .'.png')}}" alt="" class=" h-5">
-                        <h4>
-                            {{ucfirst($user->level)}} Badge
-                        </h4>
-                    </a>
                 </div>
             </div>
 
@@ -177,47 +170,8 @@
                         {{$user->kyc?->date_of_birth->format('d M Y') ?? '-'}}
                     </span>
                 </p>
-
-                <div class=" flex justify-between items-center p-2 lg:py-3">
-                    <span>
-                        Account Status:
-                    </span>
-
-                    <a href="{{route('account-levels')}}" class=" flex items-center gap-2 mt-1">
-                        <img src="{{asset('badges/' . $user->level .'.png')}}" alt="" class=" h-5">
-                        <h4>
-                            {{ucfirst($user->level)}} Badge
-                        </h4>
-                    </a>
-                </div>
-
-
             </div>
         </div>
-
-        <div class=" mt-4 lg:mt-6">
-            <h4 class=" font-semibold mb-1 lg:text-lg">
-                {{ config('app.name') }} Tag
-            </h4>
-
-            <div class=" bg-gray-100 p-3 rounded-xl flex justify-between items-center lg:p-4">
-                <img src="{{asset('icons/At.png')}}" alt="">
-
-                <div class=" flex items-center gap-x-3">
-                    <p class=" font-medium">
-                        {{$user?->username ?? '-'}}
-                    </p>
-
-                    <a href="{{route('profile.change-fitpay-tag')}}">
-                        <button class=" p-2 lg:py-3">
-                            <span class=" fa fa-pencil text-blue-600"></span>
-                        </button>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-
 
         <button class=" text-center mt-10 mx-auto block " @click="showDeleteModal = true">
             <span class="fa fa-close  mx-auto rounded-full h-10 w-10 bg-red-700 text-white flex items-center justify-center mb-2"></span>

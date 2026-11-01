@@ -202,14 +202,14 @@ class PalmPayWebhookController extends Controller
 
                     $merchant = $tx->merchant;
                     if ($merchant) {
-                        $merchant->wallet_balance += $tx->amount;
+                        $merchant->wallet_balance += $amountNgn;
                         if ($tx->charge_mode === 'merchant') {
-                            $merchant->wallet_balance -= $chargeKobo;
+                            $merchant->wallet_balance -= $chargeNgn;
                         }
                         $merchant->save();
 
                         $merchant->transactions()->create([
-                            'amount' => $tx->amount,
+                            'amount' => $amountNgn,
                             'type' => UserTransaction::TYPE_CREDIT,
                             'status' => UserTransaction::STATUS_SUCCESSFUL,
                             'source' => UserTransaction::SOURCE_BANK_TRANSFER,
@@ -217,15 +217,15 @@ class PalmPayWebhookController extends Controller
                             'reference' => $tx->reference,
                         ]);
 
-                        if ($chargeKobo > 0 && $tx->charge_mode === 'merchant') {
+                        if ($chargeNgn > 0 && $tx->charge_mode === 'merchant') {
                             $merchant->transactions()->create([
-                                'amount' => $chargeKobo,
+                                'amount' => $chargeNgn,
                                 'type' => UserTransaction::TYPE_DEBIT,
                                 'status' => UserTransaction::STATUS_SUCCESSFUL,
                                 'source' => UserTransaction::SOURCE_BANK_TRANSFER,
                                 'message' => 'Gateway payment charge: ₦' . number_format($chargeNgn, 2),
                                 'reference' => $tx->reference,
-                                'fee' => $chargeKobo,
+                                'fee' => $chargeNgn,
                             ]);
                         }
                     }

@@ -236,4 +236,152 @@ class WebhookController extends Controller
             }
         }
     }
+
+    public function handlePaystack(Request $request)
+    {
+        $secretKey = config('paystack.secret_key') ?? env('PAYSTACK_SECRET_KEY');
+        $signature = $request->header('x-paystack-signature');
+
+        Log::info('WebhookController: Received Paystack webhook', [
+            'event' => $request->input('event'),
+            'has_signature' => !empty($signature),
+        ]);
+
+        if (!$signature || $signature !== hash_hmac('sha512', $request->getContent(), $secretKey)) {
+            Log::warning('WebhookController: Paystack webhook invalid signature');
+            return response()->json(['message' => 'Invalid signature'], 400);
+        }
+
+        $event = $request->input('event');
+
+        if ($event === 'charge.success') {
+            $data = $request->input('data');
+            $reference = $data['reference'] ?? null;
+            $email = $data['customer']['email'] ?? null;
+            $amount = ($data['amount'] ?? 0) / 100;
+
+            Log::info('WebhookController: Processing Paystack charge.success webhook', [
+                'reference' => $reference,
+                'email'     => $email,
+                'amount'    => $amount,
+            ]);
+
+            if ($reference && $email && $amount > 0) {
+                // Check if this reference belongs to a GatewayTransaction (Payment Link)
+                $gwRef = $data['metadata']['gateway_reference'] ?? null;
+                $gatewayTx = null;
+                if ($gwRef) {
+                    $gatewayTx = \App\Models\GatewayTransaction::where('reference', $gwRef)->first();
+                }
+                if (!$gatewayTx && $reference) {
+                    $gatewayTx = \App\Models\GatewayTransaction::where('provider_reference', $reference)->orWhere('reference', $reference)->first();
+                }
+
+                if ($gatewayTx) {
+                    if ($gatewayTx->status !== 'success') {
+                        DB::beginTransaction();
+                        try {
+                            $gatewayTx->update([
+                                'status' => 'success',
+                                'paid_at' => now(),
+                                'raw_provider_webhook' => $data,
+                            ]);
+
+                            $amountNgn = $gatewayTx->amount / 100;
+                            $chargeKobo = $gatewayTx->fee;
+                            $chargeNgn = $chargeKobo / 100;
+
+                            $merchant = $gatewayTx->merchant;
+                            if ($merchant) {
+                                $merchant->wallet_balance += $gatewayTx->amount;
+                                if ($gatewayTx->charge_mode === 'merchant') {
+                                    $merchant->wallet_balance -= $chargeKobo;
+                                }
+                                $merchant->save();
+
+                                $merchant->transactions()->create([
+                                    'amount' => $gatewayTx->amount,
+                                    'type' => UserTransaction::TYPE_CREDIT,
+                                    'status' => UserTransaction::STATUS_SUCCESSFUL,
+                                    'source' => UserTransaction::SOURCE_BANK_TRANSFER,
+                                    'message' => 'Gateway payment received: ₦' . number_format($amountNgn, 2),
+                                    'reference' => $gatewayTx->reference,
+                                ]);
+
+                                if ($chargeKobo > 0 && $gatewayTx->charge_mode === 'merchant') {
+                                    $merchant->transactions()->create([
+                                        'amount' => $chargeKobo,
+                                        'type' => UserTransaction::TYPE_DEBIT,
+                                        'status' => UserTransaction::STATUS_SUCCESSFUL,
+                                        'source' => UserTransaction::SOURCE_BANK_TRANSFER,
+                                        'message' => 'Gateway payment charge: ₦' . number_format($chargeNgn, 2),
+                                        'reference' => $gatewayTx->reference,
+                                        'fee' => $chargeKobo,
+                                    ]);
+                                }
+                            }
+
+                            DB::commit();
+                            (new \App\Services\GatewayWebhookService())->dispatch($gatewayTx, 'payment.success');
+
+                            Log::info('WebhookController: GatewayTransaction credited via Paystack webhook', [
+                                'gateway_reference' => $gatewayTx->reference,
+                                'amount' => $amount,
+                            ]);
+                        } catch (\Throwable $e) {
+                            DB::rollBack();
+                            Log::error('WebhookController Paystack Gateway error: ' . $e->getMessage());
+                        }
+                    }
+                } else {
+                    DB::beginTransaction();
+                    try {
+                        $existingTx = \App\Models\PaymentTransaction::where('transaction_reference', $reference)->first();
+                        if (!$existingTx) {
+                            $user = User::where('email', $email)->first();
+                            if ($user) {
+                                \App\Models\PaymentTransaction::create([
+                                    'transaction_id' => $data['id'],
+                                    'transaction_reference' => $reference,
+                                    'user_id' => $user->id,
+                                    'amount' => $amount,
+                                    'currency' => $data['currency'] ?? 'NGN',
+                                    'charge_fee' => ($data['fees'] ?? 0) / 100,
+                                    'payment_method' => 'paystack_card',
+                                ]);
+
+                                $user->increment('wallet_balance', $amount);
+
+                                $user->transactions()->create([
+                                    'amount' => $amount,
+                                    'type' => UserTransaction::TYPE_CREDIT,
+                                    'message' => "Funded ₦" . number_format($amount, 2) . " via Paystack Card",
+                                    'status' => UserTransaction::STATUS_SUCCESSFUL,
+                                    'source' => UserTransaction::SOURCE_WALLET_FUNDED,
+                                    'reference' => $reference,
+                                ]);
+
+                                Log::info('WebhookController: Wallet credited via Paystack webhook', [
+                                    'user_id'   => $user->id,
+                                    'reference' => $reference,
+                                    'amount'    => $amount,
+                                ]);
+                            } else {
+                                Log::warning('WebhookController: User not found for email ' . $email, ['reference' => $reference]);
+                            }
+                        } else {
+                            Log::info('WebhookController: Duplicate Paystack webhook ignored for reference ' . $reference);
+                        }
+                        DB::commit();
+                    } catch (\Throwable $e) {
+                        DB::rollBack();
+                        Log::error('Paystack webhook error: ' . $e->getMessage(), ['reference' => $reference]);
+                    }
+                }
+            }
+        }
+
+        return response()->json(['status' => 'success'], 200);
+    }
 }
+

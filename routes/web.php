@@ -239,10 +239,69 @@ Route::get('/preview-email', function () {
 // });
 
 
+Route::get('/clear-cache', function () {
+    $out = [];
+    if (function_exists('opcache_reset')) {
+        @opcache_reset();
+        $out[] = "✓ OPcache reset.";
+    }
+    \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+    $out[] = "✓ Laravel cache, routes, config, and views cleared.";
+
+    try {
+        $ps = new \App\Services\PaystackService();
+        $key = config('paystack.secret_key') ?? env('PAYSTACK_SECRET_KEY', '');
+        $keyPrefix = substr($key, 0, 8);
+        $out[] = "Paystack key mode: " . ($keyPrefix === 'sk_live_' ? 'LIVE MODE (sk_live_***)' : 'TEST MODE (' . $keyPrefix . '***)');
+
+        $res = $ps->initializeTransaction(100.0, 'test@payzenter.com', 'test_ping_' . time(), url('/'));
+        $out[] = "Paystack initialize response: " . json_encode($res);
+    } catch (\Throwable $e) {
+        $out[] = "Paystack exception: " . $e->getMessage();
+    }
+
+    return response(implode("\n", $out), 200)->header('Content-Type', 'text/plain');
+});
+
+Route::get('/fix-merchant-balance', function () {
+    $tx = \App\Models\GatewayTransaction::where('reference', 'like', 'VA_TX_%')
+        ->where('status', 'success')
+        ->latest('id')
+        ->first();
+
+    if (!$tx) {
+        return response('No recent VA transaction found.', 404);
+    }
+
+    $merchant = $tx->merchant;
+    if (!$merchant) {
+        return response('Merchant not found.', 404);
+    }
+
+    $oldBalance = (float) $merchant->wallet_balance;
+    // Overcredited amount in excess of real Naira value: ($tx->amount - ($tx->amount / 100))
+    // e.g. 10,000 - 100 = 9,900
+    $overcredit = $tx->amount - ($tx->amount / 100);
+    $merchant->wallet_balance = max(0, $oldBalance - $overcredit);
+    $merchant->save();
+
+    // Also update the UserTransaction record amount to Naira
+    $userTx = \App\Models\UserTransaction::where('reference', $tx->reference)->latest('id')->first();
+    if ($userTx && (float) $userTx->amount == (float) $tx->amount) {
+        $userTx->amount = $tx->amount / 100;
+        $userTx->save();
+    }
+
+    return response("✓ Successfully corrected merchant '{$merchant->name}' balance from ₦" . number_format($oldBalance, 2) . " to ₦" . number_format($merchant->wallet_balance, 2) . "!", 200)
+        ->header('Content-Type', 'text/plain');
+});
+
 Route::post('/webhook/flutterwave', [WebhookController::class, 'handleFlutterwave'])->name('webhook');
 Route::post('/webhook/fund-walllet', [TransferWebhookController::class, 'handleFundWallet'])->name('webhook.fund-wallet');
 Route::post('/webhook/crypto', [CryptoWebhookController::class, 'handleWebhook'])->name('crypto-webhook');
 Route::post('/webhook/palmpay', [\App\Http\Controllers\PalmPayWebhookController::class, 'handle'])->name('webhook.palmpay');
+Route::post('/webhook/udara360', [\App\Http\Controllers\Udara360WebhookController::class, 'handle'])->name('webhook.udara360');
+Route::post('/webhook/paystack', [WebhookController::class, 'handlePaystack'])->name('webhook.paystack');
 
 Route::get('/gateway/flutterwave/callback/{reference}', [\App\Http\Controllers\Api\Gateway\PaymentsController::class, 'flutterwaveCallback'])->name('gateway.flutterwave.callback');
 
@@ -285,6 +344,8 @@ Route::middleware(['auth', 'is_kyc_verified', 'check.account.status',  'is_login
     Route::get('/fund-wallet/paypal/process-payment', [PayPalController::class, 'processTransaction'])->name('user.paypal.proccess-transaction');
     Route::post('/user/add-money', [PaymentController::class, 'redirectToGateway'])->name('user.add-money');
     Route::get('/user/add-money/callback', [PaymentController::class, 'handleGatewayCallback'])->name('user.add-money.callback');
+    Route::post('/user/fund-wallet/paystack-card', [PaymentController::class, 'redirectToPaystackCard'])->name('user.paystack.card');
+    Route::get('/user/fund-wallet/paystack/callback', [PaymentController::class, 'handlePaystackCallback'])->name('user.paystack.callback');
 
     // transfer
     Route::get('/transfer', TransferIndex::class)->name('transfer.index')->middleware('if_owing_ajo_contribution');
@@ -437,9 +498,13 @@ Route::middleware(['auth', 'is_kyc_verified', 'check.account.status',  'is_login
 });
 
 // Admin login
-Route::get('admin/login', Login::class)->name('admin.login');
+Route::get('powerhouse/login', Login::class)->name('admin.login');
 
-Route::group(['prefix' => 'admin', 'middleware' => ['auth']], function () {
+Route::get('powerhouse', function () {
+    return redirect()->route('admin.dashboard');
+});
+
+Route::group(['prefix' => 'powerhouse', 'middleware' => ['auth']], function () {
     Route::get('/dashboard', Dashboard::class)->name('admin.dashboard');
     Route::get('/emails', \App\Livewire\Admin\EmailCenter::class)->name('admin.emails');
     Route::get('/users', Users::class)->name('admin.users.index')->middleware('permission:view_users');
