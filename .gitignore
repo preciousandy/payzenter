@@ -18,3 +18,5 @@ yarn-error.log
 /.vscode
 .DS_Store
 /.github
+*.zip
+payzenter.zip
