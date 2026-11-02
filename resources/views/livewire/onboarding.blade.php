@@ -66,16 +66,15 @@
                 @foreach($steps as $stepNum => $label)
                     <div class="relative z-10 flex flex-col items-center">
                         <button 
-                            type="button"
+                            type="button" 
                             wire:click="goToStep({{ $stepNum }})"
-                            @disabled($stepNum > $currentStep)
                             @class([
-                                'w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 shadow-sm',
+                                'w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 shadow-sm cursor-pointer',
                                 'bg-[#1400FB] text-white ring-4 ring-blue-100 scale-105' => $currentStep === $stepNum,
-                                'bg-emerald-500 text-white cursor-pointer hover:bg-emerald-600' => $currentStep > $stepNum,
-                                'bg-gray-100 text-gray-400 border-2 border-gray-300 cursor-not-allowed' => $currentStep < $stepNum,
+                                'bg-emerald-500 text-white hover:bg-emerald-600 hover:scale-105' => $currentStep > $stepNum,
+                                'bg-white text-gray-700 border-2 border-gray-300 hover:border-[#1400FB] hover:text-[#1400FB] hover:scale-105' => $currentStep < $stepNum,
                             ])
-                            title="{{ $label }}"
+                            title="Click to jump to Step {{ $stepNum }}: {{ $label }}"
                         >
                             @if($currentStep > $stepNum)
                                 <i class="fa fa-check text-xs"></i>
@@ -83,14 +82,18 @@
                                 {{ $stepNum }}
                             @endif
                         </button>
-                        <span @class([
-                            'text-[11px] sm:text-xs font-semibold mt-2 hidden sm:block',
-                            'text-[#1400FB]' => $currentStep === $stepNum,
-                            'text-emerald-700' => $currentStep > $stepNum,
-                            'text-gray-400' => $currentStep < $stepNum,
-                        ])>
+                        <button 
+                            type="button"
+                            wire:click="goToStep({{ $stepNum }})"
+                            @class([
+                                'text-[11px] sm:text-xs font-semibold mt-2 hidden sm:block cursor-pointer transition-colors hover:text-[#1400FB]',
+                                'text-[#1400FB]' => $currentStep === $stepNum,
+                                'text-emerald-700' => $currentStep > $stepNum,
+                                'text-gray-500' => $currentStep < $stepNum,
+                            ])
+                        >
                             {{ $label }}
-                        </span>
+                        </button>
                     </div>
                 @endforeach
             </div>
@@ -193,27 +196,42 @@
                     </div>
                 </div>
 
-                <!-- Footer with Next Button synchronized with Upload State -->
-                <div class="flex items-center justify-end pt-4 border-t border-gray-100">
-                    <button 
-                        type="submit" 
-                        :disabled="activeUploads > 0" 
-                        wire:loading.attr="disabled"
-                        class="px-8 py-3.5 rounded-2xl bg-[#1400FB] text-white font-extrabold hover:bg-blue-700 transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
-                    >
-                        <span x-show="activeUploads > 0" class="flex items-center gap-2">
-                            <i class="fa fa-spinner fa-spin text-sm"></i>
-                            <span>Attaching Document... Please wait</span>
-                        </span>
-                        <span x-show="activeUploads === 0" wire:loading.remove wire:target="submitStep1" class="flex items-center gap-2">
-                            <span>Next: Business Profile</span>
-                            <i class="fa fa-arrow-right text-xs"></i>
-                        </span>
-                        <span wire:loading wire:target="submitStep1" class="flex items-center gap-2">
-                            <i class="fa fa-spinner fa-spin text-sm"></i>
-                            <span>Saving details...</span>
-                        </span>
-                    </button>
+                <!-- Footer with Next and Skip Buttons synchronized with Upload State -->
+                <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <span class="text-xs text-gray-500 font-medium hidden sm:inline">
+                        Step 1 of 5: Personal Details
+                    </span>
+
+                    <div class="flex items-center gap-3 ml-auto">
+                        <button 
+                            type="button" 
+                            wire:click="goToStep(2)" 
+                            class="px-4 py-2.5 text-xs font-bold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-xl transition flex items-center gap-1.5"
+                        >
+                            <span>Skip to Step 2</span>
+                            <i class="fa fa-arrow-right text-[10px]"></i>
+                        </button>
+
+                        <button 
+                            type="submit" 
+                            :disabled="activeUploads > 0" 
+                            wire:loading.attr="disabled"
+                            class="px-8 py-3.5 rounded-2xl bg-[#1400FB] text-white font-extrabold hover:bg-blue-700 transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                        >
+                            <span x-show="activeUploads > 0" class="flex items-center gap-2">
+                                <i class="fa fa-spinner fa-spin text-sm"></i>
+                                <span>Attaching Document... Please wait</span>
+                            </span>
+                            <span x-show="activeUploads === 0" wire:loading.remove wire:target="submitStep1" class="flex items-center gap-2">
+                                <span>Save & Continue</span>
+                                <i class="fa fa-arrow-right text-xs"></i>
+                            </span>
+                            <span wire:loading wire:target="submitStep1" class="flex items-center gap-2">
+                                <i class="fa fa-spinner fa-spin text-sm"></i>
+                                <span>Saving details...</span>
+                            </span>
+                        </button>
+                    </div>
                 </div>
             </form>
         @endif
@@ -306,28 +324,39 @@
                         class="px-5 py-3 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-2xl hover:bg-gray-100 transition duration-150 flex items-center gap-2"
                     >
                         <i class="fa fa-arrow-left text-xs"></i>
-                        <span>Back</span>
+                        <span>Back to Step 1</span>
                     </button>
 
-                    <button 
-                        type="submit" 
-                        :disabled="activeUploads > 0" 
-                        wire:loading.attr="disabled"
-                        class="px-8 py-3.5 rounded-2xl bg-[#1400FB] text-white font-extrabold hover:bg-blue-700 transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
-                    >
-                        <span x-show="activeUploads > 0" class="flex items-center gap-2">
-                            <i class="fa fa-spinner fa-spin text-sm"></i>
-                            <span>Attaching Document... Please wait</span>
-                        </span>
-                        <span x-show="activeUploads === 0" wire:loading.remove wire:target="submitStep2" class="flex items-center gap-2">
-                            <span>Next: Settlement Account</span>
-                            <i class="fa fa-arrow-right text-xs"></i>
-                        </span>
-                        <span wire:loading wire:target="submitStep2" class="flex items-center gap-2">
-                            <i class="fa fa-spinner fa-spin text-sm"></i>
-                            <span>Saving details...</span>
-                        </span>
-                    </button>
+                    <div class="flex items-center gap-3">
+                        <button 
+                            type="button" 
+                            wire:click="goToStep(3)" 
+                            class="px-4 py-2.5 text-xs font-bold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-xl transition flex items-center gap-1.5"
+                        >
+                            <span>Skip to Step 3</span>
+                            <i class="fa fa-arrow-right text-[10px]"></i>
+                        </button>
+
+                        <button 
+                            type="submit" 
+                            :disabled="activeUploads > 0" 
+                            wire:loading.attr="disabled"
+                            class="px-8 py-3.5 rounded-2xl bg-[#1400FB] text-white font-extrabold hover:bg-blue-700 transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                        >
+                            <span x-show="activeUploads > 0" class="flex items-center gap-2">
+                                <i class="fa fa-spinner fa-spin text-sm"></i>
+                                <span>Attaching Document... Please wait</span>
+                            </span>
+                            <span x-show="activeUploads === 0" wire:loading.remove wire:target="submitStep2" class="flex items-center gap-2">
+                                <span>Save & Continue</span>
+                                <i class="fa fa-arrow-right text-xs"></i>
+                            </span>
+                            <span wire:loading wire:target="submitStep2" class="flex items-center gap-2">
+                                <i class="fa fa-spinner fa-spin text-sm"></i>
+                                <span>Saving details...</span>
+                            </span>
+                        </button>
+                    </div>
                 </div>
             </form>
         @endif
@@ -391,7 +420,7 @@
                     </div>
                 @endif
 
-                <!-- Footer with Back and Next buttons -->
+                <!-- Footer with Back, Skip and Next buttons -->
                 <div class="flex items-center justify-between pt-4 border-t border-gray-100">
                     <button 
                         type="button" 
@@ -399,24 +428,35 @@
                         class="px-5 py-3 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-2xl hover:bg-gray-100 transition duration-150 flex items-center gap-2"
                     >
                         <i class="fa fa-arrow-left text-xs"></i>
-                        <span>Back</span>
+                        <span>Back to Step 2</span>
                     </button>
 
-                    <button 
-                        type="button" 
-                        wire:click="submitStep3" 
-                        wire:loading.attr="disabled"
-                        class="px-8 py-3.5 rounded-2xl bg-[#1400FB] text-white font-extrabold hover:bg-blue-700 transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 transform hover:-translate-y-0.5"
-                    >
-                        <span wire:loading.remove wire:target="submitStep3" class="flex items-center gap-2">
-                            <span>Next: Company Docs</span>
-                            <i class="fa fa-arrow-right text-xs"></i>
-                        </span>
-                        <span wire:loading wire:target="submitStep3" class="flex items-center gap-2">
-                            <i class="fa fa-spinner fa-spin text-sm"></i>
-                            <span>Saving settlement...</span>
-                        </span>
-                    </button>
+                    <div class="flex items-center gap-3">
+                        <button 
+                            type="button" 
+                            wire:click="goToStep(4)" 
+                            class="px-4 py-2.5 text-xs font-bold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-xl transition flex items-center gap-1.5"
+                        >
+                            <span>Skip to Step 4</span>
+                            <i class="fa fa-arrow-right text-[10px]"></i>
+                        </button>
+
+                        <button 
+                            type="button" 
+                            wire:click="submitStep3" 
+                            wire:loading.attr="disabled"
+                            class="px-8 py-3.5 rounded-2xl bg-[#1400FB] text-white font-extrabold hover:bg-blue-700 transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 transform hover:-translate-y-0.5"
+                        >
+                            <span wire:loading.remove wire:target="submitStep3" class="flex items-center gap-2">
+                                <span>Save & Continue</span>
+                                <i class="fa fa-arrow-right text-xs"></i>
+                            </span>
+                            <span wire:loading wire:target="submitStep3" class="flex items-center gap-2">
+                                <i class="fa fa-spinner fa-spin text-sm"></i>
+                                <span>Saving settlement...</span>
+                            </span>
+                        </button>
+                    </div>
                 </div>
             </div>
         @endif
@@ -479,7 +519,7 @@
                     />
                 </div>
 
-                <!-- Footer with Back and Next buttons synchronized with active uploads -->
+                <!-- Footer with Back, Skip and Next buttons synchronized with active uploads -->
                 <div class="flex items-center justify-between pt-6 border-t border-gray-100">
                     <button 
                         type="button" 
@@ -487,28 +527,39 @@
                         class="px-5 py-3 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-2xl hover:bg-gray-100 transition duration-150 flex items-center gap-2"
                     >
                         <i class="fa fa-arrow-left text-xs"></i>
-                        <span>Back</span>
+                        <span>Back to Step 3</span>
                     </button>
 
-                    <button 
-                        type="submit" 
-                        :disabled="activeUploads > 0" 
-                        wire:loading.attr="disabled"
-                        class="px-8 py-3.5 rounded-2xl bg-[#1400FB] text-white font-extrabold hover:bg-blue-700 transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
-                    >
-                        <span x-show="activeUploads > 0" class="flex items-center gap-2">
-                            <i class="fa fa-spinner fa-spin text-sm"></i>
-                            <span>Attaching Document... Please wait</span>
-                        </span>
-                        <span x-show="activeUploads === 0" wire:loading.remove wire:target="submitStep4" class="flex items-center gap-2">
-                            <span>Next: Security PIN</span>
-                            <i class="fa fa-arrow-right text-xs"></i>
-                        </span>
-                        <span wire:loading wire:target="submitStep4" class="flex items-center gap-2">
-                            <i class="fa fa-spinner fa-spin text-sm"></i>
-                            <span>Saving Documents...</span>
-                        </span>
-                    </button>
+                    <div class="flex items-center gap-3">
+                        <button 
+                            type="button" 
+                            wire:click="goToStep(5)" 
+                            class="px-4 py-2.5 text-xs font-bold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-xl transition flex items-center gap-1.5"
+                        >
+                            <span>Skip to Step 5</span>
+                            <i class="fa fa-arrow-right text-[10px]"></i>
+                        </button>
+
+                        <button 
+                            type="submit" 
+                            :disabled="activeUploads > 0" 
+                            wire:loading.attr="disabled"
+                            class="px-8 py-3.5 rounded-2xl bg-[#1400FB] text-white font-extrabold hover:bg-blue-700 transition-all duration-200 flex items-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5"
+                        >
+                            <span x-show="activeUploads > 0" class="flex items-center gap-2">
+                                <i class="fa fa-spinner fa-spin text-sm"></i>
+                                <span>Attaching Document... Please wait</span>
+                            </span>
+                            <span x-show="activeUploads === 0" wire:loading.remove wire:target="submitStep4" class="flex items-center gap-2">
+                                <span>Save & Continue</span>
+                                <i class="fa fa-arrow-right text-xs"></i>
+                            </span>
+                            <span wire:loading wire:target="submitStep4" class="flex items-center gap-2">
+                                <i class="fa fa-spinner fa-spin text-sm"></i>
+                                <span>Saving Documents...</span>
+                            </span>
+                        </button>
+                    </div>
                 </div>
             </form>
         @endif
@@ -516,16 +567,23 @@
         <!-- STEP 5: Security PIN -->
         @if ($currentStep === 5)
             <div class="bg-white rounded-3xl border border-gray-200 p-6 sm:p-8 space-y-6 shadow-sm text-center">
-                <div class="flex items-center justify-between">
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pb-3 border-b border-gray-100">
                     <button 
                         type="button" 
                         wire:click="goToStep(4)" 
                         class="px-4 py-2 text-xs font-semibold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition flex items-center gap-1.5"
                     >
                         <i class="fa fa-arrow-left text-[10px]"></i>
-                        <span>Back to Docs</span>
+                        <span>Back to Step 4 (Docs)</span>
                     </button>
-                    <span class="text-xs font-bold text-[#1400FB] uppercase tracking-wider">Final Step</span>
+
+                    <div class="flex items-center gap-1.5 flex-wrap justify-center text-xs">
+                        <span class="text-gray-400 font-medium text-[11px] mr-1">Review / Edit:</span>
+                        <button type="button" wire:click="goToStep(1)" class="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-blue-50 hover:text-[#1400FB] text-gray-700 font-bold transition">1. Personal</button>
+                        <button type="button" wire:click="goToStep(2)" class="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-blue-50 hover:text-[#1400FB] text-gray-700 font-bold transition">2. Business</button>
+                        <button type="button" wire:click="goToStep(3)" class="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-blue-50 hover:text-[#1400FB] text-gray-700 font-bold transition">3. Bank</button>
+                        <button type="button" wire:click="goToStep(4)" class="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-blue-50 hover:text-[#1400FB] text-gray-700 font-bold transition">4. Docs</button>
+                    </div>
                 </div>
 
                 <div>
@@ -543,7 +601,10 @@
                         @if($pinStage === 1)
                             Choose a secure 4-digit PIN for approving withdrawals and transfers.
                         @else
-                            Re-enter your 4-digit PIN to confirm.
+                            <span>Re-enter your 4-digit PIN to confirm.</span>
+                            <button type="button" wire:click="$set('pinStage', 1)" class="text-xs text-[#1400FB] hover:underline font-bold block mt-1.5 mx-auto">
+                                <i class="fa fa-rotate-left text-[10px]"></i> Change initial PIN
+                            </button>
                         @endif
                     </p>
                 </div>

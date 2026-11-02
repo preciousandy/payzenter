@@ -202,13 +202,17 @@ class Onboarding extends Component
     {
         if ($step >= 1 && $step <= 5) {
             $this->currentStep = (int) $step;
+            if ($this->currentStep !== 5) {
+                $this->pinStage = 1;
+                $this->reset('pin');
+            }
         }
     }
 
     public function prevStep()
     {
         if ($this->currentStep > 1) {
-            $this->currentStep--;
+            $this->goToStep($this->currentStep - 1);
         }
     }
 

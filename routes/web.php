@@ -236,8 +236,12 @@ Route::get('/preview-email', function () {
 //     $link = $_SERVER['DOCUMENT_ROOT'] . '/public/storage';
 //     symlink($target, $link);
 //     echo "Done";
-// });
-
+Route::get('/storage/{path}', function ($path) {
+    if (!\Illuminate\Support\Facades\Storage::disk('public')->exists($path)) {
+        abort(404);
+    }
+    return \Illuminate\Support\Facades\Storage::disk('public')->response($path);
+})->where('path', '.*')->name('storage.local');
 
 Route::get('/clear-cache', function () {
     $out = [];
@@ -309,6 +313,18 @@ Route::get('/pay/{reference}', \App\Livewire\Gateway\PaymentLinkCheckout::class)
 
 Route::get('/visit-live-chat', [UtilityController::class, 'liveChat']);
 Route::get('/visit-fund-wallet', [UtilityController::class, 'fundWallet']);
+
+Route::get('/storage/{path}', function ($path) {
+    $filePath = storage_path('app/public/' . $path);
+    if (!file_exists($filePath)) {
+        abort(404, 'File not found');
+    }
+    $mime = mime_content_type($filePath) ?: 'application/octet-stream';
+    return response()->file($filePath, [
+        'Content-Type' => $mime,
+        'Cache-Control' => 'public, max-age=86400',
+    ]);
+})->where('path', '.*')->name('storage.file');
 
 
 Route::middleware(['auth', 'is_kyc_verified', 'check.account.status',  'is_login_verified'])->group(function () {

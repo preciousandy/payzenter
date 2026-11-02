@@ -25,18 +25,18 @@ class Kyc extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function getFaceCamImageurlAttribute()
+    public function getFaceCamImageUrlAttribute()
     {
-        return '/storage/' . $this->face_cam_image;
+        return $this->face_cam_image ? getPublicStorageUrl($this->face_cam_image) : null;
     }
 
     public function getDocumentFrontImageUrlAttribute()
     {
-        return '/storage/' . $this->document_front_image;
+        return $this->document_front_image ? getPublicStorageUrl($this->document_front_image) : null;
     }
 
     public function getDocumentBackImageUrlAttribute()
     {
-        return '/storage/' . $this->document_back_image;
+        return $this->document_back_image ? getPublicStorageUrl($this->document_back_image) : null;
     }
 }

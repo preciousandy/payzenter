@@ -139,7 +139,9 @@
                         @if($merchantKyb->business_logo_path)
                             <div class="mt-4 pt-3 border-t border-indigo-100">
                                 <span class="text-xs text-gray-500 font-medium block mb-2">Business Logo</span>
-                                <img src="{{ asset('storage/' . $merchantKyb->business_logo_path) }}" alt="Business Logo" class="h-20 w-auto rounded-lg border shadow-sm object-contain bg-white p-1">
+                                <a href="{{ $merchantKyb->business_logo_url }}" target="_blank" class="inline-block group">
+                                    <img src="{{ $merchantKyb->business_logo_url }}" alt="Business Logo" class="h-20 w-auto rounded-lg border shadow-sm object-contain bg-white p-1 group-hover:ring-2 group-hover:ring-indigo-400 transition">
+                                </a>
                             </div>
                         @endif
                     </div>
@@ -185,58 +187,80 @@
                         <!-- Director Documents -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-4 border-t border-gray-200">
                             <!-- Identity Document -->
-                            <div class="bg-white p-4 rounded-xl border border-gray-200">
+                            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
                                 <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center justify-between">
-                                    <span>Identity Document</span>
+                                    <span class="flex items-center gap-1.5"><i class="fa fa-id-badge text-indigo-600"></i> Identity Document</span>
                                     @if($merchantKyb->identity_document_path)
-                                        <a href="{{ asset('storage/' . $merchantKyb->identity_document_path) }}" target="_blank" class="text-xs text-indigo-600 hover:underline">
-                                            Open Document <i class="fa fa-external-link ml-1"></i>
+                                        <a href="{{ $merchantKyb->identity_document_url }}" target="_blank" class="text-xs text-indigo-600 hover:text-indigo-800 hover:underline font-semibold flex items-center gap-1">
+                                            <span>Open in New Tab</span> <i class="fa fa-external-link"></i>
                                         </a>
                                     @endif
                                 </h4>
                                 @if($merchantKyb->identity_document_path)
                                     @php $ext = strtolower(pathinfo($merchantKyb->identity_document_path, PATHINFO_EXTENSION)); @endphp
                                     @if(in_array($ext, ['jpg', 'jpeg', 'png', 'webp']))
-                                        <img src="{{ asset('storage/' . $merchantKyb->identity_document_path) }}" alt="Identity Document" class="w-full max-h-60 object-contain rounded-lg border">
+                                        <a href="{{ $merchantKyb->identity_document_url }}" target="_blank" class="block group relative overflow-hidden rounded-lg border bg-gray-50">
+                                            <img src="{{ $merchantKyb->identity_document_url }}" alt="Identity Document" class="w-full max-h-60 object-contain p-1 group-hover:scale-102 transition duration-200">
+                                            <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-xs font-bold gap-1.5">
+                                                <i class="fa fa-magnifying-glass-plus"></i> View Full Size
+                                            </div>
+                                        </a>
                                     @else
-                                        <div class="p-4 bg-gray-50 rounded-lg text-center border border-dashed border-gray-300">
-                                            <i class="fa fa-file-pdf-o text-red-500 fa-3x mb-2 block"></i>
-                                            <span class="text-xs font-semibold text-gray-700 block mb-2">PDF Document</span>
-                                            <a href="{{ asset('storage/' . $merchantKyb->identity_document_path) }}" target="_blank" class="inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700">
-                                                View PDF File
-                                            </a>
+                                        <div class="p-5 bg-red-50/50 rounded-xl text-center border border-dashed border-red-200">
+                                            <i class="fa fa-file-pdf text-red-600 fa-3x mb-2 block"></i>
+                                            <span class="text-xs font-bold text-gray-800 block mb-1">PDF Document</span>
+                                            <span class="text-[11px] text-gray-500 block mb-3 font-mono truncate max-w-xs mx-auto">{{ basename($merchantKyb->identity_document_path) }}</span>
+                                            <div class="flex items-center justify-center gap-2">
+                                                <a href="{{ $merchantKyb->identity_document_url }}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1400FB] text-white text-xs font-bold rounded-lg hover:bg-blue-700 shadow-sm transition">
+                                                    <i class="fa fa-eye"></i> View PDF
+                                                </a>
+                                                <a href="{{ $merchantKyb->identity_document_url }}" download class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-200 transition">
+                                                    <i class="fa fa-download"></i> Download
+                                                </a>
+                                            </div>
                                         </div>
                                     @endif
                                 @else
-                                    <p class="text-xs text-gray-400 italic">No identity document uploaded</p>
+                                    <p class="text-xs text-gray-400 italic py-4 text-center">No identity document uploaded</p>
                                 @endif
                             </div>
 
                             <!-- Proof of Address -->
-                            <div class="bg-white p-4 rounded-xl border border-gray-200">
+                            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
                                 <h4 class="text-sm font-semibold text-gray-700 mb-3 flex items-center justify-between">
-                                    <span>Proof of Address</span>
+                                    <span class="flex items-center gap-1.5"><i class="fa fa-map-pin text-indigo-600"></i> Proof of Address</span>
                                     @if($merchantKyb->proof_of_address_path)
-                                        <a href="{{ asset('storage/' . $merchantKyb->proof_of_address_path) }}" target="_blank" class="text-xs text-indigo-600 hover:underline">
-                                            Open Document <i class="fa fa-external-link ml-1"></i>
+                                        <a href="{{ $merchantKyb->proof_of_address_url }}" target="_blank" class="text-xs text-indigo-600 hover:text-indigo-800 hover:underline font-semibold flex items-center gap-1">
+                                            <span>Open in New Tab</span> <i class="fa fa-external-link"></i>
                                         </a>
                                     @endif
                                 </h4>
                                 @if($merchantKyb->proof_of_address_path)
                                     @php $ext = strtolower(pathinfo($merchantKyb->proof_of_address_path, PATHINFO_EXTENSION)); @endphp
                                     @if(in_array($ext, ['jpg', 'jpeg', 'png', 'webp']))
-                                        <img src="{{ asset('storage/' . $merchantKyb->proof_of_address_path) }}" alt="Proof of Address" class="w-full max-h-60 object-contain rounded-lg border">
+                                        <a href="{{ $merchantKyb->proof_of_address_url }}" target="_blank" class="block group relative overflow-hidden rounded-lg border bg-gray-50">
+                                            <img src="{{ $merchantKyb->proof_of_address_url }}" alt="Proof of Address" class="w-full max-h-60 object-contain p-1 group-hover:scale-102 transition duration-200">
+                                            <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-xs font-bold gap-1.5">
+                                                <i class="fa fa-magnifying-glass-plus"></i> View Full Size
+                                            </div>
+                                        </a>
                                     @else
-                                        <div class="p-4 bg-gray-50 rounded-lg text-center border border-dashed border-gray-300">
-                                            <i class="fa fa-file-pdf-o text-red-500 fa-3x mb-2 block"></i>
-                                            <span class="text-xs font-semibold text-gray-700 block mb-2">PDF Document</span>
-                                            <a href="{{ asset('storage/' . $merchantKyb->proof_of_address_path) }}" target="_blank" class="inline-flex items-center px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700">
-                                                View PDF File
-                                            </a>
+                                        <div class="p-5 bg-red-50/50 rounded-xl text-center border border-dashed border-red-200">
+                                            <i class="fa fa-file-pdf text-red-600 fa-3x mb-2 block"></i>
+                                            <span class="text-xs font-bold text-gray-800 block mb-1">PDF Document</span>
+                                            <span class="text-[11px] text-gray-500 block mb-3 font-mono truncate max-w-xs mx-auto">{{ basename($merchantKyb->proof_of_address_path) }}</span>
+                                            <div class="flex items-center justify-center gap-2">
+                                                <a href="{{ $merchantKyb->proof_of_address_url }}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1400FB] text-white text-xs font-bold rounded-lg hover:bg-blue-700 shadow-sm transition">
+                                                    <i class="fa fa-eye"></i> View PDF
+                                                </a>
+                                                <a href="{{ $merchantKyb->proof_of_address_url }}" download class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-200 transition">
+                                                    <i class="fa fa-download"></i> Download
+                                                </a>
+                                            </div>
                                         </div>
                                     @endif
                                 @else
-                                    <p class="text-xs text-gray-400 italic">No proof of address uploaded</p>
+                                    <p class="text-xs text-gray-400 italic py-4 text-center">No proof of address uploaded</p>
                                 @endif
                             </div>
                         </div>
@@ -277,110 +301,158 @@
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Business Resolution -->
-                            <div class="bg-white p-4 rounded-xl border border-gray-200">
+                            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs font-semibold text-gray-700">1. Business Resolution</span>
+                                    <span class="text-xs font-bold text-gray-700 flex items-center gap-1.5"><i class="fa fa-file-lines text-indigo-600"></i> 1. Business Resolution</span>
                                     @if($merchantKyb->business_resolution_path)
-                                        <a href="{{ asset('storage/' . $merchantKyb->business_resolution_path) }}" target="_blank" class="text-xs text-indigo-600 hover:underline">
-                                            Open <i class="fa fa-external-link ml-1"></i>
+                                        <a href="{{ $merchantKyb->business_resolution_url }}" target="_blank" class="text-xs text-indigo-600 hover:underline font-semibold flex items-center gap-1">
+                                            <span>Open</span> <i class="fa fa-external-link"></i>
                                         </a>
                                     @endif
                                 </div>
                                 @if($merchantKyb->business_resolution_path)
                                     @php $ext = strtolower(pathinfo($merchantKyb->business_resolution_path, PATHINFO_EXTENSION)); @endphp
                                     @if(in_array($ext, ['jpg', 'jpeg', 'png', 'webp']))
-                                        <img src="{{ asset('storage/' . $merchantKyb->business_resolution_path) }}" class="w-full max-h-48 object-contain rounded border">
+                                        <a href="{{ $merchantKyb->business_resolution_url }}" target="_blank" class="block group relative overflow-hidden rounded-lg border bg-gray-50">
+                                            <img src="{{ $merchantKyb->business_resolution_url }}" class="w-full max-h-48 object-contain p-1 group-hover:scale-102 transition duration-200">
+                                            <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-xs font-bold gap-1.5">
+                                                <i class="fa fa-magnifying-glass-plus"></i> View Full Size
+                                            </div>
+                                        </a>
                                     @else
-                                        <div class="p-3 bg-gray-50 rounded text-center border border-dashed border-gray-300">
-                                            <i class="fa fa-file-pdf-o text-red-500 text-2x mb-1 block"></i>
-                                            <a href="{{ asset('storage/' . $merchantKyb->business_resolution_path) }}" target="_blank" class="text-xs text-indigo-600 font-medium underline">
-                                                View Document PDF
-                                            </a>
+                                        <div class="p-4 bg-red-50/50 rounded-xl text-center border border-dashed border-red-200">
+                                            <i class="fa fa-file-pdf text-red-600 fa-2x mb-1 block"></i>
+                                            <span class="text-xs font-bold text-gray-800 block mb-1">PDF File</span>
+                                            <span class="text-[11px] text-gray-500 block mb-2 font-mono truncate max-w-xs mx-auto">{{ basename($merchantKyb->business_resolution_path) }}</span>
+                                            <div class="flex items-center justify-center gap-2">
+                                                <a href="{{ $merchantKyb->business_resolution_url }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1 bg-[#1400FB] text-white text-xs font-bold rounded-lg hover:bg-blue-700 shadow-sm transition">
+                                                    <i class="fa fa-eye"></i> View PDF
+                                                </a>
+                                                <a href="{{ $merchantKyb->business_resolution_url }}" download class="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-200 transition">
+                                                    <i class="fa fa-download"></i> Download
+                                                </a>
+                                            </div>
                                         </div>
                                     @endif
                                 @else
-                                    <p class="text-xs text-gray-400 italic">Not uploaded</p>
+                                    <p class="text-xs text-gray-400 italic py-3 text-center">Not uploaded</p>
                                 @endif
                             </div>
 
                             <!-- Company Profile -->
-                            <div class="bg-white p-4 rounded-xl border border-gray-200">
+                            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs font-semibold text-gray-700">2. Company Profile</span>
+                                    <span class="text-xs font-bold text-gray-700 flex items-center gap-1.5"><i class="fa fa-file-lines text-indigo-600"></i> 2. Company Profile</span>
                                     @if($merchantKyb->company_profile_path)
-                                        <a href="{{ asset('storage/' . $merchantKyb->company_profile_path) }}" target="_blank" class="text-xs text-indigo-600 hover:underline">
-                                            Open <i class="fa fa-external-link ml-1"></i>
+                                        <a href="{{ $merchantKyb->company_profile_url }}" target="_blank" class="text-xs text-indigo-600 hover:underline font-semibold flex items-center gap-1">
+                                            <span>Open</span> <i class="fa fa-external-link"></i>
                                         </a>
                                     @endif
                                 </div>
                                 @if($merchantKyb->company_profile_path)
                                     @php $ext = strtolower(pathinfo($merchantKyb->company_profile_path, PATHINFO_EXTENSION)); @endphp
                                     @if(in_array($ext, ['jpg', 'jpeg', 'png', 'webp']))
-                                        <img src="{{ asset('storage/' . $merchantKyb->company_profile_path) }}" class="w-full max-h-48 object-contain rounded border">
+                                        <a href="{{ $merchantKyb->company_profile_url }}" target="_blank" class="block group relative overflow-hidden rounded-lg border bg-gray-50">
+                                            <img src="{{ $merchantKyb->company_profile_url }}" class="w-full max-h-48 object-contain p-1 group-hover:scale-102 transition duration-200">
+                                            <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-xs font-bold gap-1.5">
+                                                <i class="fa fa-magnifying-glass-plus"></i> View Full Size
+                                            </div>
+                                        </a>
                                     @else
-                                        <div class="p-3 bg-gray-50 rounded text-center border border-dashed border-gray-300">
-                                            <i class="fa fa-file-pdf-o text-red-500 text-2x mb-1 block"></i>
-                                            <a href="{{ asset('storage/' . $merchantKyb->company_profile_path) }}" target="_blank" class="text-xs text-indigo-600 font-medium underline">
-                                                View Document PDF
-                                            </a>
+                                        <div class="p-4 bg-red-50/50 rounded-xl text-center border border-dashed border-red-200">
+                                            <i class="fa fa-file-pdf text-red-600 fa-2x mb-1 block"></i>
+                                            <span class="text-xs font-bold text-gray-800 block mb-1">PDF File</span>
+                                            <span class="text-[11px] text-gray-500 block mb-2 font-mono truncate max-w-xs mx-auto">{{ basename($merchantKyb->company_profile_path) }}</span>
+                                            <div class="flex items-center justify-center gap-2">
+                                                <a href="{{ $merchantKyb->company_profile_url }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1 bg-[#1400FB] text-white text-xs font-bold rounded-lg hover:bg-blue-700 shadow-sm transition">
+                                                    <i class="fa fa-eye"></i> View PDF
+                                                </a>
+                                                <a href="{{ $merchantKyb->company_profile_url }}" download class="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-200 transition">
+                                                    <i class="fa fa-download"></i> Download
+                                                </a>
+                                            </div>
                                         </div>
                                     @endif
                                 @else
-                                    <p class="text-xs text-gray-400 italic">Not uploaded</p>
+                                    <p class="text-xs text-gray-400 italic py-3 text-center">Not uploaded</p>
                                 @endif
                             </div>
 
                             <!-- Status Report -->
-                            <div class="bg-white p-4 rounded-xl border border-gray-200">
+                            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs font-semibold text-gray-700">3. Status Report / CAC Document</span>
+                                    <span class="text-xs font-bold text-gray-700 flex items-center gap-1.5"><i class="fa fa-file-lines text-indigo-600"></i> 3. Status Report / CAC Document</span>
                                     @if($merchantKyb->status_report_path)
-                                        <a href="{{ asset('storage/' . $merchantKyb->status_report_path) }}" target="_blank" class="text-xs text-indigo-600 hover:underline">
-                                            Open <i class="fa fa-external-link ml-1"></i>
+                                        <a href="{{ $merchantKyb->status_report_url }}" target="_blank" class="text-xs text-indigo-600 hover:underline font-semibold flex items-center gap-1">
+                                            <span>Open</span> <i class="fa fa-external-link"></i>
                                         </a>
                                     @endif
                                 </div>
                                 @if($merchantKyb->status_report_path)
                                     @php $ext = strtolower(pathinfo($merchantKyb->status_report_path, PATHINFO_EXTENSION)); @endphp
                                     @if(in_array($ext, ['jpg', 'jpeg', 'png', 'webp']))
-                                        <img src="{{ asset('storage/' . $merchantKyb->status_report_path) }}" class="w-full max-h-48 object-contain rounded border">
+                                        <a href="{{ $merchantKyb->status_report_url }}" target="_blank" class="block group relative overflow-hidden rounded-lg border bg-gray-50">
+                                            <img src="{{ $merchantKyb->status_report_url }}" class="w-full max-h-48 object-contain p-1 group-hover:scale-102 transition duration-200">
+                                            <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-xs font-bold gap-1.5">
+                                                <i class="fa fa-magnifying-glass-plus"></i> View Full Size
+                                            </div>
+                                        </a>
                                     @else
-                                        <div class="p-3 bg-gray-50 rounded text-center border border-dashed border-gray-300">
-                                            <i class="fa fa-file-pdf-o text-red-500 text-2x mb-1 block"></i>
-                                            <a href="{{ asset('storage/' . $merchantKyb->status_report_path) }}" target="_blank" class="text-xs text-indigo-600 font-medium underline">
-                                                View Document PDF
-                                            </a>
+                                        <div class="p-4 bg-red-50/50 rounded-xl text-center border border-dashed border-red-200">
+                                            <i class="fa fa-file-pdf text-red-600 fa-2x mb-1 block"></i>
+                                            <span class="text-xs font-bold text-gray-800 block mb-1">PDF File</span>
+                                            <span class="text-[11px] text-gray-500 block mb-2 font-mono truncate max-w-xs mx-auto">{{ basename($merchantKyb->status_report_path) }}</span>
+                                            <div class="flex items-center justify-center gap-2">
+                                                <a href="{{ $merchantKyb->status_report_url }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1 bg-[#1400FB] text-white text-xs font-bold rounded-lg hover:bg-blue-700 shadow-sm transition">
+                                                    <i class="fa fa-eye"></i> View PDF
+                                                </a>
+                                                <a href="{{ $merchantKyb->status_report_url }}" download class="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-200 transition">
+                                                    <i class="fa fa-download"></i> Download
+                                                </a>
+                                            </div>
                                         </div>
                                     @endif
                                 @else
-                                    <p class="text-xs text-gray-400 italic">Not uploaded</p>
+                                    <p class="text-xs text-gray-400 italic py-3 text-center">Not uploaded</p>
                                 @endif
                             </div>
 
                             <!-- Business Address Verification -->
-                            <div class="bg-white p-4 rounded-xl border border-gray-200">
+                            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs font-semibold text-gray-700">4. Business Address Verification</span>
+                                    <span class="text-xs font-bold text-gray-700 flex items-center gap-1.5"><i class="fa fa-file-lines text-indigo-600"></i> 4. Business Address Verification</span>
                                     @if($merchantKyb->business_address_verification_path)
-                                        <a href="{{ asset('storage/' . $merchantKyb->business_address_verification_path) }}" target="_blank" class="text-xs text-indigo-600 hover:underline">
-                                            Open <i class="fa fa-external-link ml-1"></i>
+                                        <a href="{{ $merchantKyb->business_address_verification_url }}" target="_blank" class="text-xs text-indigo-600 hover:underline font-semibold flex items-center gap-1">
+                                            <span>Open</span> <i class="fa fa-external-link"></i>
                                         </a>
                                     @endif
                                 </div>
                                 @if($merchantKyb->business_address_verification_path)
                                     @php $ext = strtolower(pathinfo($merchantKyb->business_address_verification_path, PATHINFO_EXTENSION)); @endphp
                                     @if(in_array($ext, ['jpg', 'jpeg', 'png', 'webp']))
-                                        <img src="{{ asset('storage/' . $merchantKyb->business_address_verification_path) }}" class="w-full max-h-48 object-contain rounded border">
+                                        <a href="{{ $merchantKyb->business_address_verification_url }}" target="_blank" class="block group relative overflow-hidden rounded-lg border bg-gray-50">
+                                            <img src="{{ $merchantKyb->business_address_verification_url }}" class="w-full max-h-48 object-contain p-1 group-hover:scale-102 transition duration-200">
+                                            <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white text-xs font-bold gap-1.5">
+                                                <i class="fa fa-magnifying-glass-plus"></i> View Full Size
+                                            </div>
+                                        </a>
                                     @else
-                                        <div class="p-3 bg-gray-50 rounded text-center border border-dashed border-gray-300">
-                                            <i class="fa fa-file-pdf-o text-red-500 text-2x mb-1 block"></i>
-                                            <a href="{{ asset('storage/' . $merchantKyb->business_address_verification_path) }}" target="_blank" class="text-xs text-indigo-600 font-medium underline">
-                                                View Document PDF
-                                            </a>
+                                        <div class="p-4 bg-red-50/50 rounded-xl text-center border border-dashed border-red-200">
+                                            <i class="fa fa-file-pdf text-red-600 fa-2x mb-1 block"></i>
+                                            <span class="text-xs font-bold text-gray-800 block mb-1">PDF File</span>
+                                            <span class="text-[11px] text-gray-500 block mb-2 font-mono truncate max-w-xs mx-auto">{{ basename($merchantKyb->business_address_verification_path) }}</span>
+                                            <div class="flex items-center justify-center gap-2">
+                                                <a href="{{ $merchantKyb->business_address_verification_url }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1 bg-[#1400FB] text-white text-xs font-bold rounded-lg hover:bg-blue-700 shadow-sm transition">
+                                                    <i class="fa fa-eye"></i> View PDF
+                                                </a>
+                                                <a href="{{ $merchantKyb->business_address_verification_url }}" download class="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-200 transition">
+                                                    <i class="fa fa-download"></i> Download
+                                                </a>
+                                            </div>
                                         </div>
                                     @endif
                                 @else
-                                    <p class="text-xs text-gray-400 italic">Not uploaded</p>
+                                    <p class="text-xs text-gray-400 italic py-3 text-center">Not uploaded</p>
                                 @endif
                             </div>
                         </div>
@@ -397,7 +469,12 @@
                         @if ($kyc->face_cam_image_url)
                             <div class="mb-6 text-center">
                                 <h4 class="text-xs font-semibold text-gray-500 mb-2">Selfie Photo</h4>
-                                <img src="{{ asset($kyc->face_cam_image_url) }}" alt="Selfie" class="mx-auto rounded-xl max-h-48 border shadow-sm">
+                                <a href="{{ $kyc->face_cam_image_url }}" target="_blank" class="inline-block group">
+                                    <img src="{{ $kyc->face_cam_image_url }}" alt="Selfie" class="mx-auto rounded-xl max-h-48 border shadow-sm group-hover:ring-2 group-hover:ring-indigo-400 transition">
+                                    <span class="text-xs text-indigo-600 block mt-1 font-semibold group-hover:underline">
+                                        <i class="fa fa-external-link text-[10px]"></i> View Full Photo
+                                    </span>
+                                </a>
                             </div>
                         @endif
 
@@ -448,7 +525,12 @@
                             <div>
                                 <h4 class="text-xs font-semibold text-gray-600 mb-2">Document Front Image</h4>
                                 @if($kyc->document_front_image_url)
-                                    <img src="{{ asset($kyc->document_front_image_url) }}" alt="Front" class="w-full max-h-52 object-contain rounded-xl border">
+                                    <a href="{{ $kyc->document_front_image_url }}" target="_blank" class="block group">
+                                        <img src="{{ $kyc->document_front_image_url }}" alt="Front" class="w-full max-h-52 object-contain rounded-xl border bg-gray-50 p-1 group-hover:ring-2 group-hover:ring-indigo-400 transition">
+                                        <span class="text-xs text-indigo-600 block mt-1 font-semibold text-center group-hover:underline">
+                                            <i class="fa fa-external-link text-[10px]"></i> Open in New Tab
+                                        </span>
+                                    </a>
                                 @else
                                     <p class="text-xs text-gray-400 italic">No front image</p>
                                 @endif
@@ -456,7 +538,12 @@
                             <div>
                                 <h4 class="text-xs font-semibold text-gray-600 mb-2">Document Back Image</h4>
                                 @if($kyc->document_back_image_url)
-                                    <img src="{{ asset($kyc->document_back_image_url) }}" alt="Back" class="w-full max-h-52 object-contain rounded-xl border">
+                                    <a href="{{ $kyc->document_back_image_url }}" target="_blank" class="block group">
+                                        <img src="{{ $kyc->document_back_image_url }}" alt="Back" class="w-full max-h-52 object-contain rounded-xl border bg-gray-50 p-1 group-hover:ring-2 group-hover:ring-indigo-400 transition">
+                                        <span class="text-xs text-indigo-600 block mt-1 font-semibold text-center group-hover:underline">
+                                            <i class="fa fa-external-link text-[10px]"></i> Open in New Tab
+                                        </span>
+                                    </a>
                                 @else
                                     <p class="text-xs text-gray-400 italic">No back image</p>
                                 @endif

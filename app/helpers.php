@@ -842,3 +842,18 @@ function createFlutterwaveHostedPayment(array $details): array
     ];
   }
 }
+
+function getPublicStorageUrl(?string $path): ?string
+{
+  if (empty($path)) {
+    return null;
+  }
+  if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+    return $path;
+  }
+  $cleanPath = ltrim(str_replace('public/', '', $path), '/');
+  if (str_starts_with($cleanPath, 'storage/')) {
+    return '/' . $cleanPath;
+  }
+  return '/storage/' . $cleanPath;
+}
