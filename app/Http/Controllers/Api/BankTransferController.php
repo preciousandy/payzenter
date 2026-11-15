@@ -154,7 +154,7 @@ class BankTransferController extends Controller
             return $this->validationError($validator);
         }
 
-        $reference = 'PZ_' . time() . '_' . Str::lower(Str::random(8));
+        $reference = generateOutgoingReference();
 
         $transferService = new TransferService();
 

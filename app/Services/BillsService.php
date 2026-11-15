@@ -102,7 +102,7 @@ class BillsService
     }
 
     try {
-      $reference = generateTransactionReference(UserTransaction::SOURCE_AIRTIME) . random_int(100000, 999999);
+      $reference = generateOutgoingReference();
 
       $response = Http::withHeaders([
         'Content-Type' => 'application/json',
@@ -186,7 +186,7 @@ class BillsService
 
     try {
 
-      $reference = generateTransactionReference(UserTransaction::SOURCE_DATA) . random_int(100000, 999999);
+      $reference = generateOutgoingReference();
 
       $response = Http::withHeaders([
         'Content-Type' => 'application/json',
@@ -281,7 +281,7 @@ class BillsService
       ];
     }
 
-    $reference = generateTransactionReference(UserTransaction::SOURCE_ELECTRICITY) . random_int(100000, 999999);
+    $reference = generateOutgoingReference();
 
     try {
       $response = Http::withHeaders([
@@ -362,7 +362,7 @@ class BillsService
       ];
     }
 
-    $reference = generateTransactionReference(UserTransaction::SOURCE_CABLE) . random_int(100000, 999999);
+    $reference = generateOutgoingReference();
 
     try {
       $response = Http::withHeaders([
@@ -411,7 +411,7 @@ class BillsService
       ];
     }
 
-    $reference = generateTransactionReference(UserTransaction::SOURCE_BETTING) . random_int(100000, 999999);
+    $reference = generateOutgoingReference();
 
     try {
       $response = Http::withHeaders([

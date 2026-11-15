@@ -68,7 +68,7 @@ class UserService
                 'virtualAccountName' => $virtualAccountName,
                 'email' => $email,
                 'customerName' => $customerName,
-                'accountReference' => $customerDetails['merchant_ref'] ?? ('vva_' . Str::lower(Str::random(16))),
+                'accountReference' => $customerDetails['merchant_ref'] ?? generateIncomingReference(),
             ];
 
             if (!empty($phone)) {
@@ -149,7 +149,7 @@ class UserService
             $otherNames = $nameParts[2] ?? '';
 
             $reference = $customerDetails['merchant_ref'] 
-                ?? ('vva_udara_' . Str::lower(Str::random(16)));
+                ?? generateIncomingReference();
 
             $payload = [
                 'accountName' => $virtualAccountName,

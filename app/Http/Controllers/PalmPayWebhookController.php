@@ -144,19 +144,27 @@ class PalmPayWebhookController extends Controller
                 $orderAmountRaw = $payload['orderAmount'] ?? $payload['amount'] ?? $payload['transAmount'] ?? 0;
                 $amountKobo = (int) round(((float) $orderAmountRaw));
 
-                $txRef = 'VA_TX_' . ($orderNo ?? ($orderId ?? (time() . '_' . Str::lower(Str::random(6)))));
-
-                $existingTx = GatewayTransaction::where('reference', $txRef)
-                    ->orWhere(function ($q) use ($orderNo) {
-                        if (is_string($orderNo) && $orderNo !== '') {
-                            $q->where('palmpay_order_no', $orderNo);
+                $existingTx = GatewayTransaction::where(function ($q) use ($orderNo, $orderId) {
+                    $matched = false;
+                    if (is_string($orderNo) && $orderNo !== '') {
+                        $q->where('palmpay_order_no', $orderNo);
+                        $matched = true;
+                    }
+                    if (is_string($orderId) && $orderId !== '') {
+                        if ($matched) {
+                            $q->orWhere('palmpay_order_id', $orderId);
                         } else {
-                            $q->whereRaw('1 = 0');
+                            $q->where('palmpay_order_id', $orderId);
+                            $matched = true;
                         }
-                    })
-                    ->first();
+                    }
+                    if (!$matched) {
+                        $q->whereRaw('1 = 0');
+                    }
+                })->first();
 
                 if (!$existingTx) {
+                    $txRef = generateIncomingReference();
                     $tx = GatewayTransaction::create([
                         'merchant_id' => $vaObj->user_id,
                         'reference' => $txRef,

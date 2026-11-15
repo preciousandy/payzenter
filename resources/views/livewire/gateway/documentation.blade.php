@@ -87,16 +87,16 @@
   "status": "success",
   "message": "Payment initialized",
   "data": {
-    "reference": "gtw_xxxxxxxxxxxxxxxxxxxxxxxx",
+    "reference": "PZg9eie4bixv1eg5siti0doeg",
     "amount": 200000,
     "currency": "NGN",
     "method": "card",
     "status": "unpaid",
     "provider": {
       "name": "{{ $enablePalmPay ? 'palmpay' : ($enableFlutterwave ? 'flutterwave' : 'standard') }}",
-      "reference": "gtw_xxxxxxxxxxxxxxxxxxxxxxxx",
+      "reference": "PZg9eie4bixv1eg5siti0doeg",
       "transaction_id": null,
-      "checkout_url": "{{ rtrim(config('app.url'), '/') }}/gateway/pay/gtw_xxxxxxxxxxxxxxxxxxxxxxxx"
+      "checkout_url": "{{ rtrim(config('app.url'), '/') }}/gateway/pay/PZg9eie4bixv1eg5siti0doeg"
     }
   }
 }</code></pre>
@@ -213,14 +213,14 @@
                 <pre class="mt-2 bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs overflow-x-auto"><code>{
   "event": "payment.success",
   "type": "payment",
-  "reference": "gtw_xxxxxxxxxxxxxxxxxxxxxxxx",
+  "reference": "PZg9eie4bixv1eg5siti0doeg",
   "status": "success",
   "paid_at": "2026-05-01T12:34:56.000000Z",
   "amount": 200000,
   "currency": "NGN",
   "method": "transfer",
   "provider": "palmpay",
-  "provider_reference": "gtw_xxxxxxxxxxxxxxxxxxxxxxxx",
+  "provider_reference": "PZg9eie4bixv1eg5siti0doeg",
   "provider_transaction_id": "1234567890"
 }</code></pre>
 
@@ -228,13 +228,13 @@
                 <pre class="mt-2 bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs overflow-x-auto"><code>{
   "event": "virtual_account.funding.success",
   "type": "virtual_account_funding",
-  "reference": "fund_xxxxxxxxxxxxx",
+  "reference": "PZg9eie4bixv1eg5siti0doeg",
   "status": "success",
   "amount": 500000,
   "currency": "NGN",
   "funded_at": "2026-06-26T12:34:56.000000Z",
   "provider": "palmpay",
-  "provider_reference": "fund_xxxxxxxxxxxxx",
+  "provider_reference": "PZg9eie4bixv1eg5siti0doeg",
   "virtual_account": {
     "account_number": "1234567890",
     "account_name": "{{ getCompanyAbbreviation() }} John Doe",

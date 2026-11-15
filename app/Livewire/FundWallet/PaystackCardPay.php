@@ -102,7 +102,7 @@ class PaystackCardPay extends Component
         $this->isLoading = true;
 
         $user = auth()->user();
-        $this->reference = 'ps_cd_' . Str::random(12) . '_' . time();
+        $this->reference = generateIncomingReference();
 
         Log::info('PaystackCardPay: Processing card payment', [
             'user_id'   => $user->id ?? null,

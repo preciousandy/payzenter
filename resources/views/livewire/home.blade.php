@@ -28,22 +28,24 @@
     </div>
 
     @if (!$isActivated)
-        <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0b0075] via-[#1400FB] to-[#3a2cf5] p-6 lg:p-8 text-white shadow-xl border border-blue-400/20">
+        <div class="relative overflow-hidden rounded-3xl bg-[#1400FB] p-6 lg:p-8 text-white shadow-xl border border-blue-400/20"
+             style="background: linear-gradient(135deg, #0b0075 0%, #1400FB 55%, #3a2cf5 100%);">
             <!-- Background Glow Circles -->
-            <div class="absolute -right-16 -top-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
-            <div class="absolute -left-16 -bottom-16 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -right-16 -top-16 w-64 h-64 rounded-full blur-3xl pointer-events-none" style="background: rgba(255, 255, 255, 0.1);"></div>
+            <div class="absolute -left-16 -bottom-16 w-64 h-64 rounded-full blur-3xl pointer-events-none" style="background: rgba(99, 102, 241, 0.25);"></div>
 
             <div class="relative z-10">
                 <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                     <div class="max-w-2xl">
-                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-white/15 text-blue-100 backdrop-blur-md border border-white/20 mb-3">
-                            <i class="fa fa-bolt text-amber-300"></i>
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-blue-100 border mb-3"
+                             style="background-color: rgba(255, 255, 255, 0.15); border-color: rgba(255, 255, 255, 0.25);">
+                            <i class="fa fa-bolt" style="color: #fcd34d;"></i>
                             <span>Business Activation • Step {{ $completedStepsCount }} of 5</span>
                         </div>
                         <h2 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                             Activate your business
                         </h2>
-                        <p class="text-blue-100 text-sm sm:text-base mt-2 leading-relaxed">
+                        <p class="text-blue-100 text-sm sm:text-base mt-2 leading-relaxed" style="color: #dbeafe;">
                             Welcome inside PayZenter! You're only a few quick details away from unlocking live customer collections, generating instant virtual accounts, and withdrawing your funds directly.
                         </p>
                     </div>
@@ -55,8 +57,9 @@
                                 <i class="fa fa-lock text-sm"></i>
                             </a>
                         @elseif ($kybSubmitted)
-                            <div class="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 text-white font-semibold text-sm">
-                                <i class="fa fa-clock text-amber-300"></i>
+                            <div class="inline-flex items-center gap-2 px-5 py-3 rounded-2xl border text-white font-semibold text-sm"
+                                 style="background-color: rgba(255, 255, 255, 0.15); border-color: rgba(255, 255, 255, 0.25);">
+                                <i class="fa fa-clock" style="color: #fcd34d;"></i>
                                 <span>Verification in Review</span>
                             </div>
                         @else
@@ -69,38 +72,43 @@
                 </div>
 
                 <!-- Progress Bar Section -->
-                <div class="mt-6 pt-5 border-t border-white/15">
+                <div class="mt-6 pt-5 border-t" style="border-top-color: rgba(255, 255, 255, 0.18);">
                     <div class="flex items-center justify-between text-xs sm:text-sm font-semibold mb-2">
-                        <span class="text-blue-200 uppercase tracking-wider text-[11px]">Activation Progress</span>
+                        <span class="uppercase tracking-wider text-[11px]" style="color: #bfdbfe;">Activation Progress</span>
                         <span class="text-white font-bold">{{ $activationProgress }}% Complete</span>
                     </div>
-                    <div class="w-full bg-black/25 rounded-full h-3 p-0.5 overflow-hidden">
+                    <div class="w-full rounded-full h-3 p-0.5 overflow-hidden" style="background-color: rgba(0, 0, 0, 0.28);">
                         <div 
-                            class="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-300 h-2 rounded-full transition-all duration-700 ease-out shadow-sm"
-                            style="width: {{ $activationProgress }}%"
+                            class="h-2 rounded-full transition-all duration-700 ease-out shadow-sm"
+                            style="width: {{ $activationProgress }}%; background: linear-gradient(90deg, #34d399 0%, #2dd4bf 50%, #67e8f9 100%);"
                         ></div>
                     </div>
 
                     <!-- Step badges checklist -->
                     <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 mt-4 text-xs font-medium">
-                        <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 text-white">
-                            <i class="fa fa-check-circle text-emerald-400"></i>
+                        <div class="flex items-center gap-2 px-3 py-2 rounded-xl border text-white"
+                             style="background-color: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.2);">
+                            <i class="fa fa-check-circle" style="color: #34d399;"></i>
                             <span class="truncate">Account Created</span>
                         </div>
-                        <div class="flex items-center gap-2 px-3 py-2 rounded-xl {{ $hasPersonalInfo ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-blue-200/70' }} backdrop-blur-sm border">
-                            <i class="fa {{ $hasPersonalInfo ? 'fa-check-circle text-emerald-400' : 'fa-circle-dot text-blue-300/60' }}"></i>
+                        <div class="flex items-center gap-2 px-3 py-2 rounded-xl border"
+                             style="{{ $hasPersonalInfo ? 'background-color: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.2); color: #ffffff;' : 'background-color: rgba(0, 0, 0, 0.22); border-color: rgba(255, 255, 255, 0.1); color: #bfdbfe;' }}">
+                            <i class="fa {{ $hasPersonalInfo ? 'fa-check-circle' : 'fa-circle-dot' }}" style="color: {{ $hasPersonalInfo ? '#34d399' : 'rgba(147, 197, 253, 0.7)' }};"></i>
                             <span class="truncate">Personal Info</span>
                         </div>
-                        <div class="flex items-center gap-2 px-3 py-2 rounded-xl {{ $hasBusinessInfo ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-blue-200/70' }} backdrop-blur-sm border">
-                            <i class="fa {{ $hasBusinessInfo ? 'fa-check-circle text-emerald-400' : 'fa-circle-dot text-blue-300/60' }}"></i>
+                        <div class="flex items-center gap-2 px-3 py-2 rounded-xl border"
+                             style="{{ $hasBusinessInfo ? 'background-color: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.2); color: #ffffff;' : 'background-color: rgba(0, 0, 0, 0.22); border-color: rgba(255, 255, 255, 0.1); color: #bfdbfe;' }}">
+                            <i class="fa {{ $hasBusinessInfo ? 'fa-check-circle' : 'fa-circle-dot' }}" style="color: {{ $hasBusinessInfo ? '#34d399' : 'rgba(147, 197, 253, 0.7)' }};"></i>
                             <span class="truncate">Business Profile</span>
                         </div>
-                        <div class="flex items-center gap-2 px-3 py-2 rounded-xl {{ $hasSettlement ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-blue-200/70' }} backdrop-blur-sm border">
-                            <i class="fa {{ $hasSettlement ? 'fa-check-circle text-emerald-400' : 'fa-circle-dot text-blue-300/60' }}"></i>
+                        <div class="flex items-center gap-2 px-3 py-2 rounded-xl border"
+                             style="{{ $hasSettlement ? 'background-color: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.2); color: #ffffff;' : 'background-color: rgba(0, 0, 0, 0.22); border-color: rgba(255, 255, 255, 0.1); color: #bfdbfe;' }}">
+                            <i class="fa {{ $hasSettlement ? 'fa-check-circle' : 'fa-circle-dot' }}" style="color: {{ $hasSettlement ? '#34d399' : 'rgba(147, 197, 253, 0.7)' }};"></i>
                             <span class="truncate">Settlement Bank</span>
                         </div>
-                        <div class="flex items-center gap-2 px-3 py-2 rounded-xl {{ ($kybSubmitted && $hasPin) ? 'bg-white/10 border-white/10 text-white' : 'bg-black/20 border-white/5 text-blue-200/70' }} backdrop-blur-sm border">
-                            <i class="fa {{ ($kybSubmitted && $hasPin) ? 'fa-check-circle text-emerald-400' : 'fa-circle-dot text-blue-300/60' }}"></i>
+                        <div class="flex items-center gap-2 px-3 py-2 rounded-xl border"
+                             style="{{ ($kybSubmitted && $hasPin) ? 'background-color: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.2); color: #ffffff;' : 'background-color: rgba(0, 0, 0, 0.22); border-color: rgba(255, 255, 255, 0.1); color: #bfdbfe;' }}">
+                            <i class="fa {{ ($kybSubmitted && $hasPin) ? 'fa-check-circle' : 'fa-circle-dot' }}" style="color: {{ ($kybSubmitted && $hasPin) ? '#34d399' : 'rgba(147, 197, 253, 0.7)' }};"></i>
                             <span class="truncate">Docs & PIN</span>
                         </div>
                     </div>

@@ -29,7 +29,7 @@ class PaymentController extends Controller
         ]);
 
         $user = auth()->user();
-        $reference = 'ps_card_' . Str::random(16);
+        $reference = generateIncomingReference();
         $callbackUrl = route('user.paystack.callback');
 
         Log::info('PaymentController: Initializing Paystack card redirect', [
@@ -148,7 +148,7 @@ class PaymentController extends Controller
 
 
         //This generates a payment reference
-        $reference = Flutterwave::generateReference();
+        $reference = generateIncomingReference();
 
         // Enter the details of the payment
         $data = [

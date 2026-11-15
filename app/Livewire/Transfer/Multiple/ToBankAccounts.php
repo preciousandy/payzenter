@@ -177,7 +177,7 @@ class ToBankAccounts extends Component
                 'description' => $account['description'],
                 'bank_code' => $account['bank_code'],
                 'account_number' => $account['account_number'],
-                'reference' => "BKMTPL{$index}"  . time(),
+                'reference' => generateOutgoingReference(),
                 // 'currency' => 'NGN',
                 'bank_name' => $account['bank_name'],
                 'account_name' => $account['account_name'],

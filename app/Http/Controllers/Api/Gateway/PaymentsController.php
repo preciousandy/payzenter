@@ -69,7 +69,7 @@ class PaymentsController extends Controller
         // Calculate charged amount
         $chargedAmountKobo = $chargeMode === 'customer' ? $amountKobo + $chargeKobo : $amountKobo;
 
-        $reference = $data['reference'] ?? ('gtw_' . Str::lower(Str::random(24)));
+        $reference = !empty($data['reference']) ? $data['reference'] : generateIncomingReference();
         $existing = GatewayTransaction::query()
             ->where('merchant_id', $request->user()->id)
             ->where('reference', $reference)

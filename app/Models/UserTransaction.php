@@ -61,7 +61,11 @@ class UserTransaction extends Model
             $model->user->increment('transaction_volume', $model->amount);
 
             if (!$model->reference) {
-                $model->reference = generateTransactionReference($model->source ?? '') . random_int(100000, 999999);
+                if ($model->type === self::TYPE_DEBIT) {
+                    $model->reference = generateOutgoingReference();
+                } else {
+                    $model->reference = generateTransactionReference($model->source ?? '');
+                }
             }
 
             $model->user->notify(new NotifyUser($model->message, $model->source));

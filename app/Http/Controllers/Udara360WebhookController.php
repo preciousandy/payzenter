@@ -146,9 +146,9 @@ class Udara360WebhookController extends Controller
         }
 
         // Avoid duplicate fulfillment
-        $txRef = 'VA_TX_' . $reference;
-        $existingTx = GatewayTransaction::where('reference', $txRef)
-            ->orWhere('provider_reference', $reference)
+        $existingTx = GatewayTransaction::where('provider_reference', $reference)
+            ->orWhere('reference', $reference)
+            ->orWhere('reference', 'VA_TX_' . $reference)
             ->first();
 
         if ($existingTx && $existingTx->status === 'success') {
@@ -166,6 +166,7 @@ class Udara360WebhookController extends Controller
 
             // Create or update GatewayTransaction
             if (!$existingTx) {
+                $txRef = generateIncomingReference();
                 $tx = GatewayTransaction::create([
                     'merchant_id' => $user->id,
                     'reference' => $txRef,

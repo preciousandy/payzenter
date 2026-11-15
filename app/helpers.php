@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use KingFlamez\Rave\Facades\Rave;
 
 function getStaticBanks(): array
@@ -462,35 +463,39 @@ function calculatePercentageChange(float $percentageChange, float $amount): floa
     : $amount + $changeAmount;
 }
 
-function generateTransactionReference(string $source): string
+function generateIncomingReference(): string
 {
-  // Capitalize the source
-  $source = strtoupper($source);
+  return 'PZ' . Str::lower(Str::random(23));
+}
 
-  // Replace underscore with space
-  $source = str_replace('_', ' ', $source);
+function generateOutgoingReference(): string
+{
+  return 'PZout' . Str::lower(Str::random(14));
+}
 
-  // Split the source into words
-  $words = explode(' ', $source);
+function generateTransactionReference(string $source = ''): string
+{
+  $outgoingSources = [
+    'bank_transfer',
+    'swiftpay_transfer',
+    'multiple_bank_transfer',
+    'multiple_swiftpay_transfer',
+    'international_transfer',
+    'foreign_to_local_transfer',
+    'local_to_foreign_transfer',
+    'airtime',
+    'data',
+    'cable',
+    'electricity',
+    'betting',
+    'debit',
+  ];
 
-  // Initialize reference prefix
-  $prefix = '';
-
-  if (count($words) === 1) {
-    // If single word, take first two letters
-    $prefix = substr($words[0], 0, 2);
-  } else {
-    // If multiple words, take first letter of each word
-    foreach ($words as $word) {
-      $prefix .= substr($word, 0, 1);
-    }
+  if ($source !== '' && in_array(strtolower($source), $outgoingSources, true)) {
+    return generateOutgoingReference();
   }
 
-  // Generate timestamp
-  $timestamp = time();
-
-  // Combine prefix and timestamp
-  return 'PGNG' . $prefix . $timestamp;
+  return generateIncomingReference();
 }
 
 function getRandomElement($array = ['savings', 'referral'])

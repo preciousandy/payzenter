@@ -53,9 +53,9 @@ class PaymentLinks extends Component
             $provider = 'flutterwave';
         }
 
-        $reference = 'plink_' . Str::lower(Str::random(24));
+        $reference = generateIncomingReference();
         while (GatewayTransaction::query()->where('reference', $reference)->exists()) {
-            $reference = 'plink_' . Str::lower(Str::random(24));
+            $reference = generateIncomingReference();
         }
 
         $merchantWebhookUrl = $validated['merchant_webhook_url'] ?? auth()->user()->merchant_webhook_url;

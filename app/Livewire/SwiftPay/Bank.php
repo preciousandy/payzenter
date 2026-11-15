@@ -243,7 +243,7 @@ class Bank extends Component
             return;
         }
 
-        $reference = 'PZ_' . time() . '_' . Str::lower(Str::random(8));
+        $reference = generateOutgoingReference();
 
         $transferService = new TransferService();
 

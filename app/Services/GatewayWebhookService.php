@@ -447,6 +447,6 @@ class GatewayWebhookService
             return trim($reference);
         }
 
-        return (string) Str::uuid();
+        return generateIncomingReference();
     }
 }
