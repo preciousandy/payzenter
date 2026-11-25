@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\GatewayTransaction;
 use App\Models\User;
 use App\Models\UserTransaction;
+use App\Services\GatewayPaymentStatusService;
 use App\Services\PalmPayService;
 use App\Services\GatewayWebhookService;
 use App\Traits\ApiResponseTrait;
@@ -213,7 +214,7 @@ class PaymentsController extends Controller
                                     'expires_at' => now()->addMinutes(30),
                                     'provider' => 'flutterwave',
                                     'provider_reference' => $vaData['reference'] ?? $reference,
-                                    'status' => 'paying',
+                                    'status' => 'processing',
                                     'raw_provider_response' => $vaRes,
                                 ]);
                                 break;
@@ -248,7 +249,7 @@ class PaymentsController extends Controller
                         $tx->update([
                             'provider' => 'flutterwave',
                             'provider_reference' => $hostedData['reference'] ?? $reference,
-                            'status' => 'paying',
+                            'status' => 'processing',
                             'raw_provider_response' => [
                                 'virtual_account_failed' => $vaRes,
                                 'hosted_payment' => $hostedRes,
@@ -306,7 +307,7 @@ class PaymentsController extends Controller
                             $tx->update([
                                 'provider_reference' => $providerReference ?? $reference,
                                 'raw_provider_response' => $ussdJson,
-                                'status' => 'paying',
+                                'status' => 'processing',
                             ]);
                         } else {
                             $tx->update([
@@ -437,8 +438,8 @@ class PaymentsController extends Controller
                         'bank_transfer_name' => $accountName,
                         'expires_at' => now()->addMinutes(60),
                         'provider' => 'palmpay',
-                        'provider_reference' => $accountNo ?? $orderProviderData['orderNo'] ?? $orderId,
-                        'status' => 'paying',
+                        'provider_reference' => $orderProviderData['orderNo'] ?? $accountNo ?? $orderId,
+                        'status' => 'processing',
                         'raw_provider_response' => [
                             'order' => $orderProviderData,
                             'checkout_url' => $checkoutUrl,
@@ -494,7 +495,7 @@ class PaymentsController extends Controller
                                         'expires_at' => now()->addMinutes(30),
                                         'provider' => 'flutterwave',
                                         'provider_reference' => $vaDataFb['reference'] ?? $reference,
-                                        'status' => 'paying',
+                                        'status' => 'processing',
                                         'raw_provider_response' => [
                                             'palmpay_failed' => $palmPayError,
                                             'palmpay_identity_attempts' => $allAttemptedIdentities,
@@ -538,7 +539,7 @@ class PaymentsController extends Controller
                         $tx->update([
                             'provider' => 'flutterwave',
                             'provider_reference' => $hostedData['reference'] ?? $reference,
-                            'status' => 'paying',
+                            'status' => 'processing',
                             'raw_provider_response' => [
                                 'palmpay_failed' => $palmPayError,
                                 'palmpay_identity_attempts' => $allAttemptedIdentities,
@@ -662,142 +663,29 @@ class PaymentsController extends Controller
         }
 
         try {
-            if ($tx->provider === 'flutterwave') {
-                if (!$tx->provider_transaction_id) {
-                    return $this->error('Missing Flutterwave transaction id. Use the redirect callback first.', 400);
-                }
+            $service = app(GatewayPaymentStatusService::class);
+            $res = $service->checkAndRefreshStatus($tx);
 
-                $data = Flutterwave::verifyTransaction($tx->provider_transaction_id);
-                $status = strtolower((string) ($data['data']['status'] ?? ''));
-                if ($status === 'successful' && $tx->status !== 'success') {
-                    DB::beginTransaction();
-
-                    $amountNgn = $tx->amount / 100;
-                    $chargeKobo = $tx->fee;
-                    $chargeNgn = $chargeKobo / 100;
-
-                    $tx->update([
-                        'status' => 'success',
-                        'paid_at' => $tx->paid_at ?? now(),
-                        'raw_provider_response' => $data,
-                    ]);
-
-                    // Update merchant wallet
-                    $merchant = $tx->merchant;
-                    $merchant->wallet_balance += $amountNgn;
-                    if ($tx->charge_mode === 'merchant') {
-                        $merchant->wallet_balance -= $chargeNgn;
-                    }
-                    $merchant->save();
-
-                    // Create transactions
-                    $merchant->transactions()->create([
-                        'amount' => $amountNgn,
-                        'type' => UserTransaction::TYPE_CREDIT,
-                        'status' => UserTransaction::STATUS_SUCCESSFUL,
-                        'source' => UserTransaction::SOURCE_BANK_TRANSFER,
-                        'message' => 'Gateway payment received: ₦' . number_format($amountNgn, 2),
-                        'reference' => $tx->reference,
-                    ]);
-
-                    if ($chargeNgn > 0 && $tx->charge_mode === 'merchant') {
-                        $merchant->transactions()->create([
-                            'amount' => $chargeNgn,
-                            'type' => UserTransaction::TYPE_DEBIT,
-                            'status' => UserTransaction::STATUS_SUCCESSFUL,
-                            'source' => UserTransaction::SOURCE_BANK_TRANSFER,
-                            'message' => 'Gateway payment charge: ₦' . number_format($chargeNgn, 2),
-                            'reference' => $tx->reference,
-                            'fee' => $chargeNgn,
-                        ]);
-                    }
-
-                    DB::commit();
-
-                    // Dispatch webhook
-                    (new GatewayWebhookService())->dispatch($tx, 'payment.success');
-                }
-            } else {
-                if (!$tx->palmpay_order_id && !$tx->palmpay_order_no) {
-                    return $this->error('Missing provider order reference', 400);
-                }
-
-                $res = $palmPay->queryOrderStatus([
-                    'orderId' => $tx->palmpay_order_id,
-                    'orderNo' => $tx->palmpay_order_no,
-                ]);
-
-                $providerData = $res['data'] ?? [];
-                $oldStatus = $tx->status;
-                $this->applyPalmPayStatusToTransaction($tx, $providerData['orderStatus'] ?? null);
-
-                $tx->update([
-                    'raw_provider_response' => $res,
-                ]);
-
-                // If status changed to success, handle charge
-                if ($oldStatus !== 'success' && $tx->status === 'success') {
-                    DB::beginTransaction();
-
-                    $amountNgn = $tx->amount / 100;
-                    $chargeKobo = $tx->fee;
-                    $chargeNgn = $chargeKobo / 100;
-
-                    // Update merchant wallet
-                    $merchant = $tx->merchant;
-                    $merchant->wallet_balance += $amountNgn;
-                    if ($tx->charge_mode === 'merchant') {
-                        $merchant->wallet_balance -= $chargeNgn;
-                    }
-                    $merchant->save();
-
-                    // Create transactions
-                    $merchant->transactions()->create([
-                        'amount' => $amountNgn,
-                        'type' => UserTransaction::TYPE_CREDIT,
-                        'status' => UserTransaction::STATUS_SUCCESSFUL,
-                        'source' => UserTransaction::SOURCE_BANK_TRANSFER,
-                        'message' => 'Gateway payment received: ₦' . number_format($amountNgn, 2),
-                        'reference' => $tx->reference,
-                    ]);
-
-                    if ($chargeNgn > 0 && $tx->charge_mode === 'merchant') {
-                        $merchant->transactions()->create([
-                            'amount' => $chargeNgn,
-                            'type' => UserTransaction::TYPE_DEBIT,
-                            'status' => UserTransaction::STATUS_SUCCESSFUL,
-                            'source' => UserTransaction::SOURCE_BANK_TRANSFER,
-                            'message' => 'Gateway payment charge: ₦' . number_format($chargeNgn, 2),
-                            'reference' => $tx->reference,
-                            'fee' => $chargeNgn,
-                        ]);
-                    }
-
-                    DB::commit();
-
-                    // Dispatch webhook
-                    (new GatewayWebhookService())->dispatch($tx, 'payment.success');
-                }
-            }
+            return $this->success([
+                'reference' => $tx->reference,
+                'status' => $tx->status === 'paying' ? 'processing' : $tx->status,
+                'paid_at' => $tx->paid_at,
+                'message' => $res['message'],
+            ], 'Payment status refreshed');
         } catch (\Throwable $e) {
             return $this->error($e->getMessage(), 400);
         }
-
-        return $this->success([
-            'reference' => $tx->reference,
-            'status' => $tx->status,
-            'paid_at' => $tx->paid_at,
-        ], 'Payment status refreshed');
     }
 
     private function applyPalmPayStatusToTransaction(GatewayTransaction $tx, $orderStatus): void
     {
         $map = [
-            0 => 'unpaid',
-            1 => 'paying',
+            0 => 'processing',
+            1 => 'processing',
             2 => 'success',
             3 => 'failed',
-            4 => 'closed',
+            4 => 'failed',
+            5 => 'failed',
         ];
 
         if (!is_numeric($orderStatus)) {
@@ -919,7 +807,7 @@ class PaymentsController extends Controller
 
         $tx = GatewayTransaction::query()
             ->where('reference', $reference)
-            ->whereIn('status', ['unpaid', 'paying', 'failed'])
+            ->whereIn('status', ['unpaid', 'processing', 'paying', 'failed'])
             ->first();
 
         if (!$tx) {
@@ -968,7 +856,7 @@ class PaymentsController extends Controller
                         'palmpay_order_no' => $orderData['orderNo'] ?? null,
                         'provider' => 'palmpay',
                         'provider_reference' => $orderData['orderNo'] ?? $orderId,
-                        'status' => 'paying',
+                        'status' => 'processing',
                         'raw_provider_response' => [
                             'order' => $orderData,
                         ],
@@ -1045,7 +933,7 @@ class PaymentsController extends Controller
                 'provider' => 'flutterwave',
                 'provider_reference' => $json['data']['id'] ?? $tx->reference,
                 'raw_provider_response' => $json,
-                'status' => 'paying',
+                'status' => 'processing',
             ]);
 
             $responseData = [
@@ -1094,7 +982,7 @@ class PaymentsController extends Controller
 
         $tx = GatewayTransaction::query()
             ->where('reference', $reference)
-            ->whereIn('status', ['paying', 'unpaid'])
+            ->whereIn('status', ['processing', 'paying', 'unpaid'])
             ->first();
 
         if (!$tx) {

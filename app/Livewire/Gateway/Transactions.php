@@ -56,7 +56,11 @@ class Transactions extends Component
             ->orderByDesc('id');
 
         if ($this->status !== '') {
-            $query->where('status', $this->status);
+            if ($this->status === 'processing') {
+                $query->whereIn('status', ['processing', 'paying', 'pending', 'unpaid']);
+            } else {
+                $query->where('status', $this->status);
+            }
         }
 
         if ($this->method !== '') {

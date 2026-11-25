@@ -516,13 +516,14 @@
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
                                             Success
                                         </span>
-                                    @elseif(in_array($tx->status, ['pending', 'paying', 'unpaid']))
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
-                                            {{ ucfirst($tx->status) }}
+                                    @elseif(in_array($tx->status, ['pending', 'paying', 'unpaid', 'processing']))
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                            Processing
                                         </span>
                                     @else
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800">
-                                            {{ ucfirst($tx->status) }}
+                                            Failed
                                         </span>
                                     @endif
                                 </td>

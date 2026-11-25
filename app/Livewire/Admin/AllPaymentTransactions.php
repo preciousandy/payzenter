@@ -5,6 +5,7 @@ namespace App\Livewire\Admin;
 use App\Models\GatewayTransaction;
 use App\Models\GatewayWebhookDelivery;
 use App\Models\PaymentTransaction;
+use App\Services\GatewayPaymentStatusService;
 use App\Services\GatewayWebhookService;
 use Jantinnerezo\LivewireAlert\LivewireAlert;
 use Livewire\Component;
@@ -104,6 +105,64 @@ class AllPaymentTransactions extends Component
         if ($this->showWebhookModal && $this->selectedTxId === $transactionId) {
             $this->openWebhookModal($transactionId);
         }
+    }
+
+    public function checkLiveStatus(int $transactionId)
+    {
+        $tx = GatewayTransaction::with('merchant')->find($transactionId);
+
+        if (!$tx) {
+            $this->alert('error', 'Transaction not found.');
+            return;
+        }
+
+        $service = app(GatewayPaymentStatusService::class);
+        $result = $service->checkAndRefreshStatus($tx);
+
+        if ($result['status'] === 'success') {
+            $this->alert('success', $result['message']);
+        } elseif ($result['status'] === 'failed') {
+            $this->alert('error', $result['message']);
+        } else {
+            $this->alert('info', $result['message']);
+        }
+
+        if ($this->showWebhookModal && $this->selectedTxId === $transactionId) {
+            $this->openWebhookModal($transactionId);
+        }
+    }
+
+    public function syncProcessingTransactions()
+    {
+        $txs = GatewayTransaction::whereIn('status', ['processing', 'paying', 'pending', 'unpaid'])
+            ->where('created_at', '>=', now()->subDays(3))
+            ->latest('id')
+            ->take(25)
+            ->get();
+
+        if ($txs->isEmpty()) {
+            $this->alert('info', 'No active processing transactions to sync.');
+            return;
+        }
+
+        $service = app(GatewayPaymentStatusService::class);
+        $successCount = 0;
+        $failedCount = 0;
+        $stillProcessing = 0;
+
+        foreach ($txs as $tx) {
+            $res = $service->checkAndRefreshStatus($tx);
+            if ($res['status'] === 'success') {
+                $successCount++;
+            } elseif ($res['status'] === 'failed') {
+                $failedCount++;
+            } else {
+                $stillProcessing++;
+            }
+        }
+
+        $msg = "Synced {$txs->count()} transactions: {$successCount} Succeeded, {$failedCount} Failed, {$stillProcessing} Processing.";
+        $this->alert('success', $msg);
     }
 
     public function openWebhookModal(int $transactionId)
@@ -337,7 +396,15 @@ class AllPaymentTransactions extends Component
         }
 
         if ($this->status !== '') {
-            $query->where('status', $this->status);
+            if ($this->status === 'processing') {
+                $query->whereIn('status', ['processing', 'paying', 'pending', 'unpaid']);
+            } elseif ($this->status === 'failed') {
+                $query->whereIn('status', ['failed', 'closed', 'canceled', 'cancelled', 'fail']);
+            } elseif ($this->status === 'success') {
+                $query->whereIn('status', ['success', 'successful']);
+            } else {
+                $query->where('status', $this->status);
+            }
         }
 
         if ($this->method !== '') {
@@ -404,9 +471,11 @@ class AllPaymentTransactions extends Component
         // Gateway stats
         $gatewayStats = [
             'count' => (clone $gatewayBase)->count(),
-            'successCount' => (clone $gatewayBase)->where('status', 'success')->count(),
-            'volume' => ((float) (clone $gatewayBase)->where('status', 'success')->sum('amount')) / 100,
-            'fees' => ((float) (clone $gatewayBase)->where('status', 'success')->sum('fee')) / 100,
+            'successCount' => (clone $gatewayBase)->whereIn('status', ['success', 'successful'])->count(),
+            'processingCount' => (clone $gatewayBase)->whereIn('status', ['processing', 'paying', 'pending', 'unpaid'])->count(),
+            'failedCount' => (clone $gatewayBase)->whereIn('status', ['failed', 'closed', 'canceled', 'cancelled'])->count(),
+            'volume' => ((float) (clone $gatewayBase)->whereIn('status', ['success', 'successful'])->sum('amount')) / 100,
+            'fees' => ((float) (clone $gatewayBase)->whereIn('status', ['success', 'successful'])->sum('fee')) / 100,
         ];
 
         // Wallet stats

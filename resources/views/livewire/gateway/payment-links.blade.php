@@ -80,13 +80,18 @@
                             <td class="px-4 py-3">₦{{ formatNumber(($l->amount ?? 0) / 100) }}</td>
                             <td class="px-4 py-3">{{ strtoupper($l->method) }}</td>
                             <td class="px-4 py-3">
-                                <span class="px-2 py-1 rounded-full text-xs font-semibold
-                                    @if($l->status === 'success') bg-green-100 text-green-700
-                                    @elseif($l->status === 'failed') bg-red-100 text-red-700
-                                    @elseif(in_array($l->status, ['unpaid','paying'])) bg-yellow-100 text-yellow-700
-                                    @else bg-gray-100 text-gray-700 @endif
+                                <span class="px-2.5 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1
+                                    @if(in_array($l->status, ['success', 'successful'])) bg-emerald-100 text-emerald-700
+                                    @elseif(in_array($l->status, ['failed', 'closed', 'canceled', 'cancelled', 'fail'])) bg-rose-100 text-rose-700
+                                    @else bg-amber-100 text-amber-700 @endif
                                 ">
-                                    {{ strtoupper($l->status) }}
+                                    @if(in_array($l->status, ['success', 'successful']))
+                                        SUCCESS
+                                    @elseif(in_array($l->status, ['failed', 'closed', 'canceled', 'cancelled', 'fail']))
+                                        FAILED
+                                    @else
+                                        PROCESSING
+                                    @endif
                                 </span>
                             </td>
                             <td class="px-4 py-3">

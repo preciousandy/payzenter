@@ -288,7 +288,7 @@ class PaymentLinkCheckout extends Component
                 'provider' => 'flutterwave',
                 'provider_reference' => $json['data']['id'] ?? $tx->reference,
                 'raw_provider_response' => $json,
-                'status' => 'paying',
+                'status' => 'processing',
             ]);
 
             $this->step = 'ussd_code';
@@ -400,8 +400,8 @@ class PaymentLinkCheckout extends Component
                 'bank_transfer_name' => $accountName,
                 'expires_at' => now()->addMinutes(60),
                 'provider' => 'palmpay',
-                'provider_reference' => $accountNo,
-                'status' => 'paying',
+                'provider_reference' => $orderProviderData['orderNo'] ?? $accountNo ?? $orderId,
+                'status' => 'processing',
                 'raw_provider_response' => [
                     'order' => $orderProviderData,
                 ],
@@ -455,7 +455,7 @@ class PaymentLinkCheckout extends Component
                 'palmpay_order_no' => $orderProviderData['orderNo'] ?? null,
                 'provider' => 'palmpay',
                 'provider_reference' => $orderProviderData['orderNo'] ?? $orderId,
-                'status' => 'paying',
+                'status' => 'processing',
                 'raw_provider_response' => [
                     'order' => $orderProviderData,
                 ],
@@ -501,13 +501,17 @@ class PaymentLinkCheckout extends Component
 
                 $this->handleSuccessInternal($tx);
                 $this->step = 'success';
-            } elseif (in_array($orderStatus, ['3', '99', 'fail', 'failed', 'closed', 'canceled', 'cancelled'])) {
+            } elseif (in_array($orderStatus, ['3', '4', '5', '99', 'fail', 'failed', 'closed', 'canceled', 'cancelled', 'expired'])) {
                 $tx->update([
                     'status' => 'failed',
                     'raw_provider_response' => array_merge($tx->raw_provider_response ?? [], ['query' => $data]),
                 ]);
                 $this->verificationMessage = 'Bank transfer was not completed or has expired. Please try again.';
                 $this->step = 'method';
+            } else {
+                if ($tx->status === 'paying') {
+                    $tx->update(['status' => 'processing']);
+                }
             }
         } catch (\Throwable $e) {
             // Silently ignore network query errors while polling
@@ -542,7 +546,7 @@ class PaymentLinkCheckout extends Component
             $callbackUrl = route('gateway.pay', ['reference' => $tx->reference]);
 
             // If a Paystack charge is already pending for this transaction, and PIN is submitted:
-            if ($tx->provider === 'paystack' && !empty($tx->provider_reference) && !empty($this->card_pin) && $tx->status === 'paying') {
+            if ($tx->provider === 'paystack' && !empty($tx->provider_reference) && !empty($this->card_pin) && in_array($tx->status, ['processing', 'paying'])) {
                 \Illuminate\Support\Facades\Log::info('PaymentLinkCheckout: Submitting PIN for existing pending Paystack charge', [
                     'tx_ref' => $tx->reference,
                     'provider_reference' => $tx->provider_reference,
@@ -634,7 +638,7 @@ class PaymentLinkCheckout extends Component
                 $tx->update([
                     'provider' => 'paystack',
                     'provider_reference' => $initReference,
-                    'status' => 'paying',
+                    'status' => 'processing',
                     'raw_provider_response' => $result,
                 ]);
 
@@ -668,7 +672,7 @@ class PaymentLinkCheckout extends Component
         $tx->update([
             'provider' => 'paystack',
             'provider_reference' => $reference,
-            'status' => 'paying',
+            'status' => 'processing',
             'raw_provider_response' => $response,
         ]);
 
@@ -939,7 +943,7 @@ class PaymentLinkCheckout extends Component
                     'expires_at' => now()->addMinutes(30),
                     'provider' => 'flutterwave',
                     'provider_reference' => $vaData['reference'] ?? $tx->reference,
-                    'status' => 'paying',
+                    'status' => 'processing',
                     'raw_provider_response' => $vaRes,
                 ]);
                 $vaSuccess = true;
@@ -980,7 +984,7 @@ class PaymentLinkCheckout extends Component
         $tx->update([
             'provider' => 'flutterwave',
             'provider_reference' => $hostedData['reference'] ?? $tx->reference,
-            'status' => 'paying',
+            'status' => 'processing',
             'raw_provider_response' => [
                 'virtual_account_failed' => $vaRes,
                 'hosted_payment' => $hostedRes,
@@ -1006,7 +1010,7 @@ class PaymentLinkCheckout extends Component
         }
 
         if ($tx->expires_at && now()->isAfter($tx->expires_at)) {
-            $tx->update(['status' => 'closed']);
+            $tx->update(['status' => 'failed']);
             return;
         }
 

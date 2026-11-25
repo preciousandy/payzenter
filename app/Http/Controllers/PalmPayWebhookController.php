@@ -52,29 +52,74 @@ class PalmPayWebhookController extends Controller
             Log::info('PalmPay webhook signature check skipped (no public key or signature header provided)');
         }
 
-        $orderId = $payload['orderId'] ?? $payload['merchantTxRef'] ?? $payload['order_id'] ?? null;
-        $orderNo = $payload['orderNo'] ?? $payload['palmpayOrderNo'] ?? $payload['order_no'] ?? null;
-        $accountRef = $payload['accountReference'] ?? $payload['accountRef'] ?? $payload['reference'] ?? null;
-        $vaNo = $payload['virtualAccountNo'] ?? $payload['accountNo'] ?? $payload['account_number'] ?? $payload['virtualAccount'] ?? null;
-        $transId = $payload['transId'] ?? $payload['transactionId'] ?? $payload['provider_reference'] ?? null;
+        $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
 
-        // Search for specific order transaction first (do NOT match generic bank_transfer_account here because dedicated VAs handle multiple transfers)
+        $orderId = $payload['orderId'] 
+            ?? $data['orderId'] 
+            ?? $payload['merchantTxRef'] 
+            ?? $data['merchantTxRef'] 
+            ?? $payload['order_id'] 
+            ?? $data['order_id'] 
+            ?? $payload['outOrderNo'] 
+            ?? $data['outOrderNo'] 
+            ?? null;
+
+        $orderNo = $payload['orderNo'] 
+            ?? $data['orderNo'] 
+            ?? $payload['palmpayOrderNo'] 
+            ?? $data['palmpayOrderNo'] 
+            ?? $payload['order_no'] 
+            ?? $data['order_no'] 
+            ?? null;
+
+        $accountRef = $payload['accountReference'] 
+            ?? $data['accountReference'] 
+            ?? $payload['accountRef'] 
+            ?? $data['accountRef'] 
+            ?? $payload['reference'] 
+            ?? $data['reference'] 
+            ?? null;
+
+        $vaNo = $payload['virtualAccountNo'] 
+            ?? $data['virtualAccountNo'] 
+            ?? $payload['accountNo'] 
+            ?? $data['accountNo'] 
+            ?? $payload['account_number'] 
+            ?? $data['account_number'] 
+            ?? $payload['virtualAccount'] 
+            ?? $data['virtualAccount'] 
+            ?? null;
+
+        $transId = $payload['transId'] 
+            ?? $data['transId'] 
+            ?? $payload['transactionId'] 
+            ?? $data['transactionId'] 
+            ?? $payload['provider_reference'] 
+            ?? $data['provider_reference'] 
+            ?? null;
+
+        // Search for specific order transaction first (matching order numbers, references, or active pending/paying VAs)
         $query = GatewayTransaction::query();
-        $query->where(function ($q) use ($orderId, $orderNo, $accountRef, $transId) {
+        $query->where(function ($q) use ($orderId, $orderNo, $accountRef, $transId, $vaNo) {
             $hasCondition = false;
             if ($orderId) {
                 $q->orWhere('palmpay_order_id', $orderId)
-                  ->orWhere('reference', $orderId);
+                  ->orWhere('reference', $orderId)
+                  ->orWhere('provider_reference', $orderId);
                 $hasCondition = true;
             }
             if ($orderNo) {
                 $q->orWhere('palmpay_order_no', $orderNo)
+                  ->orWhere('provider_reference', $orderNo)
+                  ->orWhere('reference', $orderNo)
                   ->orWhere('reference', 'VA_TX_' . $orderNo);
                 $hasCondition = true;
             }
             if ($accountRef) {
                 $q->orWhere('reference', $accountRef)
-                  ->orWhere('provider_reference', $accountRef);
+                  ->orWhere('provider_reference', $accountRef)
+                  ->orWhere('palmpay_order_id', $accountRef)
+                  ->orWhere('palmpay_order_no', $accountRef);
                 if (preg_match('/^(GTW|TX)(\d+)_/i', (string) $accountRef, $matches)) {
                     $q->orWhere('id', $matches[2]);
                 }
@@ -82,7 +127,16 @@ class PalmPayWebhookController extends Controller
             }
             if ($transId) {
                 $q->orWhere('provider_reference', $transId)
-                  ->orWhere('palmpay_order_no', $transId);
+                  ->orWhere('palmpay_order_no', $transId)
+                  ->orWhere('palmpay_order_id', $transId)
+                  ->orWhere('reference', $transId);
+                $hasCondition = true;
+            }
+            if ($vaNo) {
+                $q->orWhere(function ($sub) use ($vaNo) {
+                    $sub->where('bank_transfer_account', $vaNo)
+                        ->whereIn('status', ['processing', 'paying', 'unpaid', 'pending']);
+                });
                 $hasCondition = true;
             }
 
@@ -91,9 +145,17 @@ class PalmPayWebhookController extends Controller
             }
         });
 
-        $tx = $query->first();
+        $tx = $query->latest('id')->first();
 
-        $rawStatus = $payload['orderStatus'] ?? $payload['paymentStatus'] ?? $payload['status'] ?? $payload['respCode'] ?? null;
+        $rawStatus = $payload['orderStatus'] 
+            ?? $data['orderStatus'] 
+            ?? $payload['paymentStatus'] 
+            ?? $data['paymentStatus'] 
+            ?? $payload['status'] 
+            ?? $data['status'] 
+            ?? $payload['respCode'] 
+            ?? $data['respCode'] 
+            ?? null;
         $isCashier = ($tx !== null);
         $status = $this->mapPalmPayStatus($rawStatus, $isCashier);
 
@@ -141,27 +203,66 @@ class PalmPayWebhookController extends Controller
                     'user_id' => $vaObj->user_id,
                 ]);
 
-                $orderAmountRaw = $payload['orderAmount'] ?? $payload['amount'] ?? $payload['transAmount'] ?? 0;
+                $orderAmountRaw = $payload['orderAmount'] ?? $data['orderAmount'] ?? $payload['amount'] ?? $data['amount'] ?? $payload['transAmount'] ?? $data['transAmount'] ?? 0;
                 $amountKobo = (int) round(((float) $orderAmountRaw));
 
-                $existingTx = GatewayTransaction::where(function ($q) use ($orderNo, $orderId) {
+                $existingTx = GatewayTransaction::where(function ($q) use ($orderNo, $orderId, $transId, $accountRef) {
                     $matched = false;
                     if (is_string($orderNo) && $orderNo !== '') {
-                        $q->where('palmpay_order_no', $orderNo);
+                        $q->where('palmpay_order_no', $orderNo)
+                          ->orWhere('provider_reference', $orderNo)
+                          ->orWhere('reference', $orderNo);
                         $matched = true;
                     }
                     if (is_string($orderId) && $orderId !== '') {
                         if ($matched) {
-                            $q->orWhere('palmpay_order_id', $orderId);
+                            $q->orWhere('palmpay_order_id', $orderId)
+                              ->orWhere('reference', $orderId)
+                              ->orWhere('provider_reference', $orderId);
                         } else {
-                            $q->where('palmpay_order_id', $orderId);
+                            $q->where('palmpay_order_id', $orderId)
+                              ->orWhere('reference', $orderId)
+                              ->orWhere('provider_reference', $orderId);
+                            $matched = true;
+                        }
+                    }
+                    if (is_string($transId) && $transId !== '') {
+                        if ($matched) {
+                            $q->orWhere('provider_reference', $transId)
+                              ->orWhere('palmpay_order_no', $transId);
+                        } else {
+                            $q->where('provider_reference', $transId)
+                              ->orWhere('palmpay_order_no', $transId);
+                            $matched = true;
+                        }
+                    }
+                    if (is_string($accountRef) && $accountRef !== '') {
+                        if ($matched) {
+                            $q->orWhere('reference', $accountRef)
+                              ->orWhere('provider_reference', $accountRef);
+                        } else {
+                            $q->where('reference', $accountRef)
+                              ->orWhere('provider_reference', $accountRef);
                             $matched = true;
                         }
                     }
                     if (!$matched) {
                         $q->whereRaw('1 = 0');
                     }
-                })->first();
+                })->latest('id')->first();
+
+                // If not matched by identifiers, check if an active pending/paying transaction exists for this merchant and amount
+                if (!$existingTx) {
+                    $existingTx = GatewayTransaction::where('merchant_id', $vaObj->user_id)
+                        ->where(function ($q) use ($vaObj) {
+                            $q->where('bank_transfer_account', $vaObj->account_number)
+                              ->orWhereNull('bank_transfer_account');
+                        })
+                        ->whereIn('status', ['processing', 'paying', 'unpaid', 'pending'])
+                        ->where('amount', $amountKobo)
+                        ->latest('id')
+                        ->first();
+                }
 
                 if (!$existingTx) {
                     $txRef = generateIncomingReference();
@@ -194,6 +295,15 @@ class PalmPayWebhookController extends Controller
         if ($tx) {
             Log::info('PalmPay webhook processing GatewayTransaction', ['tx_id' => $tx->id, 'tx_ref' => $tx->reference]);
             $previousStatus = $tx->status;
+
+            if ($previousStatus === 'success') {
+                Log::info('PalmPay webhook transaction already marked successful, returning idempotent success', [
+                    'tx_id' => $tx->id,
+                    'tx_ref' => $tx->reference,
+                ]);
+                return response()->json(['respCode' => '00000000', 'respMsg' => 'success'], 200);
+            }
+
             $tx->update([
                 'status' => $status !== 'unknown' ? $status : $tx->status,
                 'paid_at' => ($status === 'success') ? ($tx->paid_at ?? now()) : $tx->paid_at,
@@ -290,15 +400,15 @@ class PalmPayWebhookController extends Controller
         }
 
         if ($isCashier && $statusStr === '1') {
-            return 'paying';
+            return 'processing';
         }
 
         if (in_array($statusStr, ['3', 'FAILED', 'REJECTED'], true)) {
             return 'failed';
         }
 
-        if (in_array($statusStr, ['4', 'CLOSED', 'EXPIRED', 'CANCELED', 'CANCELLED'], true)) {
-            return 'closed';
+        if (in_array($statusStr, ['4', '5', 'CLOSED', 'EXPIRED', 'CANCELED', 'CANCELLED'], true)) {
+            return 'failed';
         }
 
         return 'unknown';

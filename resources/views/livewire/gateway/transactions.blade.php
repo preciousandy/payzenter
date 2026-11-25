@@ -19,7 +19,7 @@
                 <select wire:model.live="status" class="w-full mt-1 rounded-xl border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
                     <option value="">All</option>
                     <option value="unpaid">Unpaid</option>
-                    <option value="paying">Paying</option>
+                    <option value="processing">Processing</option>
                     <option value="success">Success</option>
                     <option value="failed">Failed</option>
                     <option value="closed">Closed</option>
@@ -81,13 +81,18 @@
                             <td class="px-4 py-3">₦{{ formatNumber($tx->amount / 100) }}</td>
                             <td class="px-4 py-3">{{ strtoupper($tx->method) }}</td>
                             <td class="px-4 py-3">
-                                <span class="px-2 py-1 rounded-full text-xs font-semibold
-                                    @if($tx->status === 'success') bg-green-100 text-green-700
-                                    @elseif($tx->status === 'failed') bg-red-100 text-red-700
-                                    @elseif(in_array($tx->status, ['unpaid','paying'])) bg-yellow-100 text-yellow-700
-                                    @else bg-gray-100 text-gray-700 @endif
+                                <span class="px-2.5 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1
+                                    @if(in_array($tx->status, ['success', 'successful'])) bg-emerald-100 text-emerald-700
+                                    @elseif(in_array($tx->status, ['failed', 'closed', 'canceled', 'cancelled', 'fail'])) bg-rose-100 text-rose-700
+                                    @else bg-amber-100 text-amber-700 @endif
                                 ">
-                                    {{ strtoupper($tx->status) }}
+                                    @if(in_array($tx->status, ['success', 'successful']))
+                                        SUCCESS
+                                    @elseif(in_array($tx->status, ['failed', 'closed', 'canceled', 'cancelled', 'fail']))
+                                        FAILED
+                                    @else
+                                        PROCESSING
+                                    @endif
                                 </span>
                             </td>
                             <td class="px-4 py-3">

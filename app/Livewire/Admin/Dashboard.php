@@ -93,7 +93,7 @@ class Dashboard extends Component
         // 3. Payment Gateway Transactions
         $this->totalGatewayTransactions = GatewayTransaction::count();
         $this->successfulGatewayTransactions = GatewayTransaction::where('status', 'success')->count();
-        $this->pendingGatewayTransactions = GatewayTransaction::whereIn('status', ['pending', 'paying', 'unpaid'])->count();
+        $this->pendingGatewayTransactions = GatewayTransaction::whereIn('status', ['pending', 'processing', 'paying', 'unpaid'])->count();
         $this->failedGatewayTransactions = GatewayTransaction::whereIn('status', ['failed', 'cancelled', 'closed'])->count();
 
         $rawSuccessVolume = GatewayTransaction::where('status', 'success')->sum('amount');

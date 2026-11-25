@@ -151,6 +151,19 @@ class Udara360WebhookController extends Controller
             ->orWhere('reference', 'VA_TX_' . $reference)
             ->first();
 
+        // Also check if there is an existing pending/paying transaction for this merchant and virtual account with matching amount
+        if (!$existingTx) {
+            $existingTx = GatewayTransaction::where('merchant_id', $user->id)
+                ->where(function ($q) use ($vaNo) {
+                    $q->where('bank_transfer_account', $vaNo)
+                      ->orWhereNull('bank_transfer_account');
+                })
+                ->whereIn('status', ['processing', 'paying', 'unpaid', 'pending'])
+                ->where('amount', $amountKobo)
+                ->latest('id')
+                ->first();
+        }
+
         if ($existingTx && $existingTx->status === 'success') {
             Log::info('Udara360 webhook transaction already fulfilled', ['reference' => $reference]);
             return response()->json(['status' => 'success', 'message' => 'Transaction already processed'], 200);

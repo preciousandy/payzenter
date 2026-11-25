@@ -26,6 +26,32 @@
             opacity: 0.6 !important;
             cursor: not-allowed !important;
         }
+        .btn-check-status {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 5px !important;
+            padding: 5px 10px !important;
+            border-radius: 7px !important;
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            color: #047857 !important;
+            background-color: #ecfdf5 !important;
+            border: 1px solid #a7f3d0 !important;
+            cursor: pointer !important;
+            transition: all 0.15s ease-in-out !important;
+            text-decoration: none !important;
+            white-space: nowrap !important;
+            outline: none !important;
+        }
+        .btn-check-status:hover {
+            background-color: #d1fae5 !important;
+            color: #065f46 !important;
+            border-color: #6ee7b7 !important;
+        }
+        .btn-check-status:disabled {
+            opacity: 0.6 !important;
+            cursor: not-allowed !important;
+        }
         .btn-webhook-inspect {
             display: inline-flex !important;
             align-items: center !important;
@@ -55,6 +81,16 @@
             <p class="text-sm text-gray-500 mt-0.5">Manage and audit both merchant gateway collections and user wallet funding payments.</p>
         </div>
         <div class="flex items-center gap-2">
+            <button type="button"
+                wire:click="syncProcessingTransactions"
+                wire:loading.attr="disabled"
+                wire:target="syncProcessingTransactions"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition cursor-pointer"
+                title="Sync and verify active processing transactions in real-time">
+                <i class="fa fa-arrows-rotate text-[11px]" wire:loading.remove wire:target="syncProcessingTransactions"></i>
+                <i class="fa fa-spinner fa-spin text-[11px]" wire:loading wire:target="syncProcessingTransactions"></i>
+                <span>Sync Processing</span>
+            </button>
             <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Live Monitoring
             </span>
@@ -162,12 +198,8 @@
                     <select wire:model.live="status" class="w-full rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500">
                         <option value="">All statuses</option>
                         <option value="success">Success</option>
-                        <option value="pending">Pending</option>
-                        <option value="unpaid">Unpaid</option>
-                        <option value="paying">Paying</option>
+                        <option value="processing">Processing</option>
                         <option value="failed">Failed</option>
-                        <option value="cancelled">Cancelled</option>
-                        <option value="closed">Closed</option>
                     </select>
                 </div>
 
@@ -212,7 +244,7 @@
         </div>
 
         <!-- Gateway Table -->
-        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden" wire:poll.15s>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200 text-sm text-left">
                     <thead class="bg-gray-50 text-gray-600 text-xs uppercase tracking-wider font-semibold">
@@ -270,12 +302,23 @@
                                     <span class="block text-[11px] text-gray-400 uppercase mt-0.5 font-mono">{{ $tx->method }}</span>
                                 </td>
                                 <td class="px-5 py-4 whitespace-nowrap">
-                                    <span class="inline-flex px-2.5 py-0.5 rounded-full text-xs font-bold
-                                        @if($tx->status === 'success') bg-emerald-100 text-emerald-800
-                                        @elseif(in_array($tx->status, ['pending', 'paying', 'unpaid'])) bg-amber-100 text-amber-800
-                                        @else bg-rose-100 text-rose-800 @endif">
-                                        {{ ucfirst($tx->status) }}
-                                    </span>
+                                    @php $st = strtolower((string)$tx->status); @endphp
+                                    @if(in_array($st, ['success', 'successful']))
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                            <i class="fa fa-check-circle text-[11px] text-emerald-600"></i>
+                                            <span>Success</span>
+                                        </span>
+                                    @elseif(in_array($st, ['failed', 'closed', 'canceled', 'cancelled', 'fail']))
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                            <i class="fa fa-times-circle text-[11px] text-rose-600"></i>
+                                            <span>Failed</span>
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                            <span>Processing</span>
+                                        </span>
+                                    @endif
                                 </td>
                                 <td class="px-5 py-4 whitespace-nowrap text-xs text-gray-500">
                                     {{ optional($tx->created_at)->format('d M Y, H:i') }}
@@ -319,6 +362,17 @@
                                 </td>
                                 <td class="px-5 py-4 whitespace-nowrap text-right">
                                     <div class="inline-flex items-center gap-1.5">
+                                        <button type="button"
+                                            wire:click="checkLiveStatus({{ $tx->id }})"
+                                            wire:loading.attr="disabled"
+                                            wire:target="checkLiveStatus({{ $tx->id }})"
+                                            class="btn-check-status"
+                                            title="Check live provider status in real-time">
+                                            <i class="fa fa-rotate text-[10px]" wire:loading.remove wire:target="checkLiveStatus({{ $tx->id }})"></i>
+                                            <i class="fa fa-spinner fa-spin text-[10px]" wire:loading wire:target="checkLiveStatus({{ $tx->id }})"></i>
+                                            <span>Check Status</span>
+                                        </button>
+
                                         <button type="button"
                                             wire:click="repushWebhook({{ $tx->id }})"
                                             wire:loading.attr="disabled"
